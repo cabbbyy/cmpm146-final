@@ -10,6 +10,7 @@ Implemented so far:
 - automated tests for move generation, flipping, passing, terminal states, and scoring
 - baseline AI agents with short move explanations
 - minimax search with alpha-beta pruning
+- MCTS bot as a stretch-search agent
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
 - round-robin tournament simulation with summary statistics
 - JSON and CSV export support for tournament results
@@ -18,7 +19,7 @@ Implemented so far:
 
 Planned next:
 
-- optional MCTS as a stretch goal
+- MCTS tuning and stronger rollout/analysis comparisons if the team wants to push the stretch work further
 
 ## Repository Layout
 
@@ -35,7 +36,7 @@ The engine is intentionally UI-independent. It exposes immutable game states and
 - human play
 - baseline bots
 - minimax and alpha-beta search
-- possible MCTS later
+- MCTS and other stretch-search experiments
 - tournament simulation without duplicated rules logic
 
 ## Bots
@@ -46,6 +47,7 @@ Available bots:
 - `GreedyBot`: chooses the move that flips the most discs immediately
 - `HeuristicBot`: evaluates successor states using corners, corner danger, mobility, edge control, and disc balance
 - `MinimaxBot`: searches future positions with alpha-beta pruning and a configurable depth
+- `MCTSBot`: searches with Monte Carlo Tree Search using configurable rollout counts
 
 Each bot returns both a move and a short explanation string tied to its actual policy.
 
@@ -77,7 +79,13 @@ Run against minimax at a specific depth:
 python3 -m ui --black human --white minimax --minimax-depth 3
 ```
 
-Other supported controller names are `human`, `random`, `greedy`, `heuristic`, and `minimax`.
+Run against MCTS with a chosen rollout budget:
+
+```bash
+python3 -m ui --black human --white mcts --mcts-iterations 200
+```
+
+Other supported controller names are `human`, `random`, `greedy`, `heuristic`, `minimax`, and `mcts`.
 
 ## Run Tournaments
 
@@ -105,6 +113,12 @@ Compare the search-oriented roster repeatedly:
 python3 -m sim --preset search --games-per-pair 2 --repetitions 3 --minimax-depth 3
 ```
 
+Compare the stretch-search roster with MCTS included:
+
+```bash
+python3 -m sim --preset stretch --games-per-pair 1 --repetitions 3 --minimax-depth 3 --mcts-iterations 200
+```
+
 The simulator prints:
 
 - wins, losses, and draws
@@ -124,6 +138,15 @@ python3 -m sim greedy heuristic minimax \
   --json-out results/tournament.json \
   --standings-csv results/standings.csv \
   --matches-csv results/matches.csv
+```
+
+You can include MCTS directly in explicit rosters as well:
+
+```bash
+python3 -m sim heuristic minimax mcts \
+  --games-per-pair 1 \
+  --minimax-depth 3 \
+  --mcts-iterations 200
 ```
 
 In repeated mode, `--json-out` writes the full experiment summary, while the CSV exports contain aggregate standings and aggregate per-match data across all repetitions.
