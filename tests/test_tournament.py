@@ -80,6 +80,7 @@ class TournamentTests(unittest.TestCase):
         report = render_tournament_report(result)
         self.assertIn("Othello Bot Arena Tournament", report)
         self.assertIn("Standings", report)
+        self.assertIn("Matchup Summary", report)
         self.assertIn("Match Results", report)
 
 
