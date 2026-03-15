@@ -21,6 +21,20 @@ from engine import (
 )
 
 _CORNERS: Tuple[Position, ...] = ((0, 0), (0, 7), (7, 0), (7, 7))
+_CORNER_ADJACENT = {
+    (0, 1),
+    (1, 0),
+    (1, 1),
+    (0, 6),
+    (1, 6),
+    (1, 7),
+    (6, 0),
+    (6, 1),
+    (7, 1),
+    (6, 6),
+    (6, 7),
+    (7, 6),
+}
 
 
 @dataclass(frozen=True)
@@ -210,7 +224,9 @@ class MCTSBot(OthelloBot):
         player = state.current_player
         for action in actions:
             successor = apply_move(state, action)
-            score = evaluate_state(successor, player).total
+            score = evaluate_state(successor, player).total + self._heuristic_move_bonus(
+                action
+            )
             if best_action is None or score > best_score:
                 best_action = action
                 best_score = score
@@ -256,15 +272,19 @@ class MCTSBot(OthelloBot):
             if best_child is None:
                 best_child = child
                 continue
+            child_score = child.average_value() + self._rollout_move_bonus(child.move)
+            best_score = best_child.average_value() + self._rollout_move_bonus(
+                best_child.move
+            )
+            if child_score > best_score:
+                best_child = child
+                continue
+            if child_score < best_score:
+                continue
             if child.visits > best_child.visits:
                 best_child = child
                 continue
             if child.visits < best_child.visits:
-                continue
-            if child.average_value() > best_child.average_value():
-                best_child = child
-                continue
-            if child.average_value() < best_child.average_value():
                 continue
             if self._move_order_key(child.move) < self._move_order_key(best_child.move):
                 best_child = child
@@ -289,3 +309,18 @@ class MCTSBot(OthelloBot):
         if move is None:
             return (1, 8, 8)
         return (0, move[0], move[1])
+
+    def _heuristic_move_bonus(self, move: Move) -> int:
+        if move is None:
+            return 0
+        if move in _CORNERS:
+            return 12
+        if move in _CORNER_ADJACENT:
+            return -8
+        row, col = move
+        if row in (0, 7) or col in (0, 7):
+            return 3
+        return 0
+
+    def _rollout_move_bonus(self, move: Move) -> float:
+        return self._heuristic_move_bonus(move) / 100.0

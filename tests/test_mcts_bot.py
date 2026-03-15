@@ -31,6 +31,27 @@ class MCTSBotTests(unittest.TestCase):
         self.assertEqual(decision.move, (0, 0))
         self.assertIn("after 64 rollouts", decision.explanation)
         self.assertIn("corners are permanent and highly valuable", decision.explanation)
+        self.assertIn("heuristic playouts", decision.explanation)
+
+    def test_tuned_rollout_policy_avoids_the_known_risky_move(self):
+        state = make_state(
+            [
+                "........",
+                ".W......",
+                ".BWB....",
+                "...WB...",
+                "...BBB..",
+                "........",
+                "........",
+                "........",
+            ],
+            current_player=WHITE,
+        )
+
+        decision = MCTSBot(iterations=64, rng=random.Random(7)).decide(state)
+
+        self.assertEqual(decision.move, (5, 5))
+        self.assertIn("heuristic playouts", decision.explanation)
 
     def test_mcts_bot_passes_when_no_legal_move_exists(self):
         state = make_state(
@@ -55,6 +76,14 @@ class MCTSBotTests(unittest.TestCase):
     def test_invalid_iterations_are_rejected(self):
         with self.assertRaises(ValueError):
             MCTSBot(iterations=0)
+
+    def test_invalid_rollout_parameters_are_rejected(self):
+        with self.assertRaises(ValueError):
+            MCTSBot(iterations=32, rollout_depth_limit=0)
+        with self.assertRaises(ValueError):
+            MCTSBot(iterations=32, rollout_epsilon=-0.1)
+        with self.assertRaises(ValueError):
+            MCTSBot(iterations=32, rollout_epsilon=1.1)
 
 
 if __name__ == "__main__":
