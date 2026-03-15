@@ -13,10 +13,11 @@ Implemented so far:
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
 - round-robin tournament simulation with summary statistics
 - JSON and CSV export support for tournament results
+- repeated evaluation mode with preset bot rosters and consistency summaries
 
 Planned next:
 
-- stronger evaluation experiments and comparisons
+- lightweight analysis helpers over exported experiment data
 - optional MCTS as a stretch goal
 
 ## Repository Layout
@@ -92,6 +93,18 @@ Include minimax at a chosen depth:
 python3 -m sim greedy heuristic minimax --games-per-pair 2 --minimax-depth 3
 ```
 
+Run a repeated evaluation with a preset roster:
+
+```bash
+python3 -m sim --preset baseline --games-per-pair 1 --repetitions 5
+```
+
+Compare the search-oriented roster repeatedly:
+
+```bash
+python3 -m sim --preset search --games-per-pair 2 --repetitions 3 --minimax-depth 3
+```
+
 The simulator prints:
 
 - wins, losses, and draws
@@ -100,6 +113,7 @@ The simulator prints:
 - first-player results across the tournament
 - per-matchup summaries
 - per-match scorelines
+- repeated-mode first-place counts and average rank
 
 Write structured experiment outputs:
 
@@ -111,6 +125,8 @@ python3 -m sim greedy heuristic minimax \
   --standings-csv results/standings.csv \
   --matches-csv results/matches.csv
 ```
+
+In repeated mode, `--json-out` writes the full experiment summary, while the CSV exports contain aggregate standings and aggregate per-match data across all repetitions.
 
 ## Course Framing
 
