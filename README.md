@@ -12,10 +12,10 @@ Implemented so far:
 - minimax search with alpha-beta pruning
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
 - round-robin tournament simulation with summary statistics
+- JSON and CSV export support for tournament results
 
 Planned next:
 
-- richer tournament exports and analysis output
 - stronger evaluation experiments and comparisons
 - optional MCTS as a stretch goal
 
@@ -98,7 +98,19 @@ The simulator prints:
 - average disc differential
 - average final score
 - first-player results across the tournament
+- per-matchup summaries
 - per-match scorelines
+
+Write structured experiment outputs:
+
+```bash
+python3 -m sim greedy heuristic minimax \
+  --games-per-pair 2 \
+  --minimax-depth 3 \
+  --json-out results/tournament.json \
+  --standings-csv results/standings.csv \
+  --matches-csv results/matches.csv
+```
 
 ## Course Framing
 
