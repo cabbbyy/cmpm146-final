@@ -17,3 +17,15 @@ Run the test suite with:
 ```bash
 python3 -m unittest discover -s tests
 ```
+
+Run the minimal CLI prototype with:
+
+```bash
+python3 -m ui --black human --white heuristic
+```
+
+You can also watch bots play each other:
+
+```bash
+python3 -m ui --black greedy --white heuristic
+```
