@@ -5,7 +5,15 @@ from dataclasses import dataclass
 from math import log, sqrt, tanh
 from typing import List, Optional, Tuple
 
-from bots.base import BotDecision, OthelloBot, format_move, resolve_player
+from bots.base import (
+    BotDecision,
+    CandidateInsight,
+    DecisionDetails,
+    OthelloBot,
+    format_move,
+    move_order_key,
+    resolve_player,
+)
 from bots.heuristics import dominant_reason, evaluate_state
 from engine import (
     BLACK,
@@ -45,6 +53,16 @@ class MCTSResult:
     visits: int
     expected_value: float
     rollouts: int
+    candidates: Tuple["MCTSCandidate", ...]
+
+
+@dataclass(frozen=True)
+class MCTSCandidate:
+    """Root-child summary used for verbose explanation output."""
+
+    move: Move
+    visits: int
+    expected_value: float
 
 
 class _MCTSNode:
@@ -128,6 +146,7 @@ class MCTSBot(OthelloBot):
         return BotDecision(
             move=result.move,
             explanation=self._build_explanation(state, player, result),
+            details=self._build_details(state, player, result),
         )
 
     def choose_move(self, state: GameState, color: str) -> Move:
@@ -147,6 +166,7 @@ class MCTSBot(OthelloBot):
                 visits=0,
                 expected_value=0.0,
                 rollouts=0,
+                candidates=(),
             )
         if actions == (None,):
             return MCTSResult(
@@ -154,6 +174,7 @@ class MCTSBot(OthelloBot):
                 visits=0,
                 expected_value=0.0,
                 rollouts=0,
+                candidates=(),
             )
 
         root = _MCTSNode(
@@ -177,11 +198,27 @@ class MCTSBot(OthelloBot):
             self._backpropagate(node, rollout_value, player)
 
         best_child = self._best_root_child(root)
+        candidates = tuple(
+            MCTSCandidate(
+                move=child.move,
+                visits=child.visits,
+                expected_value=child.average_value(),
+            )
+            for child in sorted(
+                root.children,
+                key=lambda child: (
+                    -child.visits,
+                    -child.average_value(),
+                    move_order_key(child.move),
+                ),
+            )
+        )
         return MCTSResult(
             move=best_child.move,
             visits=best_child.visits,
             expected_value=best_child.average_value(),
             rollouts=root.visits,
+            candidates=candidates,
         )
 
     def _select_child(self, node: _MCTSNode) -> _MCTSNode:
@@ -192,7 +229,7 @@ class MCTSBot(OthelloBot):
             if best_child is None or score > best_score:
                 best_child = child
                 best_score = score
-            elif score == best_score and self._move_order_key(child.move) < self._move_order_key(best_child.move):
+            elif score == best_score and move_order_key(child.move) < move_order_key(best_child.move):
                 best_child = child
         return best_child
 
@@ -230,7 +267,7 @@ class MCTSBot(OthelloBot):
             if best_action is None or score > best_score:
                 best_action = action
                 best_score = score
-            elif score == best_score and self._move_order_key(action) < self._move_order_key(best_action):
+            elif score == best_score and move_order_key(action) < move_order_key(best_action):
                 best_action = action
         return best_action
 
@@ -286,7 +323,7 @@ class MCTSBot(OthelloBot):
                 continue
             if child.visits < best_child.visits:
                 continue
-            if self._move_order_key(child.move) < self._move_order_key(best_child.move):
+            if move_order_key(child.move) < move_order_key(best_child.move):
                 best_child = child
         return best_child
 
@@ -305,10 +342,34 @@ class MCTSBot(OthelloBot):
             f"playouts, and {reason}."
         )
 
-    def _move_order_key(self, move: Move) -> Tuple[int, int, int]:
-        if move is None:
-            return (1, 8, 8)
-        return (0, move[0], move[1])
+    def _build_details(
+        self,
+        state: GameState,
+        player: str,
+        result: MCTSResult,
+    ) -> DecisionDetails:
+        top_candidates = tuple(
+            CandidateInsight(
+                move=candidate.move,
+                score_text=(
+                    f"visits {candidate.visits}, "
+                    f"value {candidate.expected_value:+.2f}"
+                ),
+                rationale=dominant_reason(
+                    evaluate_state(apply_move(state, candidate.move), player)
+                ),
+            )
+            for candidate in result.candidates[:3]
+        )
+        return DecisionDetails(
+            top_candidates=top_candidates,
+            notes=(
+                f"Iterations: {self.iterations}",
+                f"Exploration constant: {self.exploration:.2f}",
+                f"Rollout depth limit: {self.rollout_depth_limit}",
+                f"Rollout epsilon: {self.rollout_epsilon:.2f}",
+            ),
+        )
 
     def _heuristic_move_bonus(self, move: Move) -> int:
         if move is None:

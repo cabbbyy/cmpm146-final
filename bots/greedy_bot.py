@@ -1,6 +1,13 @@
 """Greedy immediate-gain baseline bot."""
 
-from bots.base import OthelloBot, format_move, resolve_player
+from bots.base import (
+    CandidateInsight,
+    DecisionDetails,
+    OthelloBot,
+    format_move,
+    move_order_key,
+    resolve_player,
+)
 from engine import GameState, Move, flips_for_move, legal_moves
 
 
@@ -36,4 +43,35 @@ class GreedyBot(OthelloBot):
         return (
             f"Chose {format_move(move)} because it flips {best_gain} {disc_word} "
             f"immediately, {tie_text}"
+        )
+
+    def build_details(
+        self,
+        state: GameState,
+        color: str,
+        move: Move,
+    ) -> DecisionDetails:
+        player = resolve_player(state, color)
+        gains = {
+            candidate: len(flips_for_move(state, candidate, player))
+            for candidate in legal_moves(state, player)
+        }
+        top_candidates = tuple(
+            CandidateInsight(
+                move=candidate,
+                score_text=f"{gain} immediate flip{'s' if gain != 1 else ''}",
+                rationale="maximizes short-term disc gain"
+                if candidate == move
+                else "strong immediate gain compared with the other legal moves",
+            )
+            for candidate, gain in sorted(
+                gains.items(),
+                key=lambda item: (-item[1], move_order_key(item[0])),
+            )[:3]
+        )
+        return DecisionDetails(
+            top_candidates=top_candidates,
+            notes=(
+                "Policy: choose the move with the highest immediate flip count.",
+            ),
         )

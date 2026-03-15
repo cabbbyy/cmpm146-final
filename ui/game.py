@@ -11,6 +11,7 @@ from bots import (
     BotDecision,
     build_bot,
     format_move,
+    render_decision_details,
     resolve_player,
 )
 from engine import (
@@ -52,6 +53,7 @@ class PresentationOptions:
 
     demo: bool = False
     demo_delay: float = 0.0
+    explain_verbose: bool = False
 
 
 class HumanCLIPlayer:
@@ -159,6 +161,8 @@ def play_game(
         else:
             output.write(f"{player_name(state.current_player)} ({controller.name}): ")
             output.write(decision.explanation + "\n")
+        if options.explain_verbose and decision.details is not None:
+            output.write(render_decision_details(decision.details) + "\n")
 
         state = apply_move(state, decision.move)
         turn_count += 1
@@ -221,6 +225,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default=0.0,
         help="optional delay in seconds between bot turns when demo mode is enabled",
     )
+    parser.add_argument(
+        "--explain-verbose",
+        action="store_true",
+        help="show top candidate moves and bot-specific reasoning details when available",
+    )
     args = parser.parse_args(argv)
     if args.demo_delay < 0:
         parser.error("--demo-delay must be non-negative.")
@@ -241,6 +250,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         presentation=PresentationOptions(
             demo=args.demo,
             demo_delay=args.demo_delay,
+            explain_verbose=args.explain_verbose,
         ),
     )
     return 0

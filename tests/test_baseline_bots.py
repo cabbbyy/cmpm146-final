@@ -65,6 +65,9 @@ class BaselineBotTests(unittest.TestCase):
 
         self.assertEqual(decision.move, (2, 5))
         self.assertIn("flips 2 discs immediately", decision.explanation)
+        self.assertIsNotNone(decision.details)
+        self.assertEqual(len(decision.details.top_candidates), 3)
+        self.assertIn("immediate flip", decision.details.top_candidates[0].score_text)
 
 
 if __name__ == "__main__":

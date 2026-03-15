@@ -64,6 +64,21 @@ class CliUiTests(unittest.TestCase):
         self.assertGreater(len(delays), 0)
         self.assertTrue(all(delay == 0.05 for delay in delays))
 
+    def test_play_game_can_render_verbose_explanations(self):
+        output = io.StringIO()
+
+        play_game(
+            MinimaxBot(depth=2),
+            GreedyBot(),
+            output=output,
+            presentation=PresentationOptions(explain_verbose=True),
+        )
+
+        transcript = output.getvalue()
+        self.assertIn("Verbose analysis:", transcript)
+        self.assertIn("Top candidates:", transcript)
+        self.assertIn("Search depth: 2", transcript)
+
     def test_build_controller_supports_minimax_depth(self):
         controller = build_controller("minimax", minimax_depth=2)
 

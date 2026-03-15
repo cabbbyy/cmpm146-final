@@ -31,6 +31,12 @@ class MinimaxBotTests(unittest.TestCase):
         self.assertEqual(depth_one.move, (3, 5))
         self.assertEqual(depth_two.move, (5, 5))
         self.assertIn("depth 2", depth_two.explanation)
+        self.assertIsNotNone(depth_two.details)
+        self.assertEqual(len(depth_two.details.top_candidates), 3)
+        self.assertIn("search value", depth_two.details.top_candidates[0].score_text)
+        self.assertTrue(
+            any("Search depth: 2" in note for note in depth_two.details.notes)
+        )
 
     def test_minimax_bot_passes_when_no_legal_move_exists(self):
         state = make_state(
@@ -51,6 +57,7 @@ class MinimaxBotTests(unittest.TestCase):
 
         self.assertIsNone(decision.move)
         self.assertIn("passes", decision.explanation)
+        self.assertIsNotNone(decision.details)
 
     def test_invalid_depth_is_rejected(self):
         with self.assertRaises(ValueError):

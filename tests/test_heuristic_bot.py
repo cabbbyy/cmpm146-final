@@ -53,6 +53,10 @@ class HeuristicBotTests(unittest.TestCase):
 
         self.assertEqual(decision.move, (0, 0))
         self.assertIn("corners are permanent and highly valuable", decision.explanation)
+        self.assertIsNotNone(decision.details)
+        self.assertEqual(len(decision.details.top_candidates), 3)
+        self.assertIn("heuristic", decision.details.top_candidates[0].score_text)
+        self.assertIn("corners", decision.details.top_candidates[0].rationale)
 
 
 if __name__ == "__main__":

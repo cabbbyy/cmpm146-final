@@ -1,6 +1,15 @@
 """Bot implementations for Othello Bot Arena."""
 
-from bots.base import BotDecision, OthelloBot, format_move, resolve_player
+from bots.base import (
+    BotDecision,
+    CandidateInsight,
+    DecisionDetails,
+    OthelloBot,
+    format_move,
+    move_order_key,
+    render_decision_details,
+    resolve_player,
+)
 from bots.factory import BOT_SPECS, build_bot
 from bots.greedy_bot import GreedyBot
 from bots.heuristic_bot import HeuristicBot
@@ -12,6 +21,8 @@ from bots.random_bot import RandomBot
 __all__ = [
     "BOT_SPECS",
     "BotDecision",
+    "CandidateInsight",
+    "DecisionDetails",
     "GreedyBot",
     "HeuristicBot",
     "HeuristicBreakdown",
@@ -23,5 +34,7 @@ __all__ = [
     "dominant_reason",
     "evaluate_state",
     "format_move",
+    "move_order_key",
+    "render_decision_details",
     "resolve_player",
 ]

@@ -32,6 +32,10 @@ class MCTSBotTests(unittest.TestCase):
         self.assertIn("after 64 rollouts", decision.explanation)
         self.assertIn("corners are permanent and highly valuable", decision.explanation)
         self.assertIn("heuristic playouts", decision.explanation)
+        self.assertIsNotNone(decision.details)
+        self.assertEqual(len(decision.details.top_candidates), 3)
+        self.assertIn("visits", decision.details.top_candidates[0].score_text)
+        self.assertTrue(any("Iterations: 64" in note for note in decision.details.notes))
 
     def test_tuned_rollout_policy_avoids_the_known_risky_move(self):
         state = make_state(
@@ -52,6 +56,7 @@ class MCTSBotTests(unittest.TestCase):
 
         self.assertEqual(decision.move, (5, 5))
         self.assertIn("heuristic playouts", decision.explanation)
+        self.assertIsNotNone(decision.details)
 
     def test_mcts_bot_passes_when_no_legal_move_exists(self):
         state = make_state(
@@ -72,6 +77,7 @@ class MCTSBotTests(unittest.TestCase):
 
         self.assertIsNone(decision.move)
         self.assertIn("passes", decision.explanation)
+        self.assertIsNotNone(decision.details)
 
     def test_invalid_iterations_are_rejected(self):
         with self.assertRaises(ValueError):

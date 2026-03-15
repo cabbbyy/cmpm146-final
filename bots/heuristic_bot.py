@@ -1,6 +1,13 @@
 """Heuristic baseline bot."""
 
-from bots.base import OthelloBot, format_move, resolve_player
+from bots.base import (
+    CandidateInsight,
+    DecisionDetails,
+    OthelloBot,
+    format_move,
+    move_order_key,
+    resolve_player,
+)
 from bots.heuristics import dominant_reason, evaluate_state
 from engine import GameState, Move, apply_move, legal_moves
 
@@ -37,4 +44,40 @@ class HeuristicBot(OthelloBot):
         return (
             f"Chose {format_move(move)} because {reason}. "
             f"Heuristic score {breakdown.total}."
+        )
+
+    def build_details(
+        self,
+        state: GameState,
+        color: str,
+        move: Move,
+    ) -> DecisionDetails:
+        player = resolve_player(state, color)
+        evaluations = []
+        for candidate in legal_moves(state, player):
+            breakdown = evaluate_state(apply_move(state, candidate), player)
+            evaluations.append((candidate, breakdown))
+
+        top_candidates = tuple(
+            CandidateInsight(
+                move=candidate,
+                score_text=f"heuristic {breakdown.total:+d}",
+                rationale=(
+                    f"corners {breakdown.corner_score:+d}, "
+                    f"mobility {breakdown.mobility_score:+d}, "
+                    f"edges {breakdown.edge_score:+d}, "
+                    f"disc balance {breakdown.disc_score:+d}, "
+                    f"corner risk {breakdown.corner_risk_score:+d}"
+                ),
+            )
+            for candidate, breakdown in sorted(
+                evaluations,
+                key=lambda item: (-item[1].total, move_order_key(item[0])),
+            )[:3]
+        )
+        return DecisionDetails(
+            top_candidates=top_candidates,
+            notes=(
+                "Weights: corners 25, corner danger -8, mobility 5, edges 2, discs 1-3 by game phase.",
+            ),
         )
