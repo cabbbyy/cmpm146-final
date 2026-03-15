@@ -28,6 +28,7 @@ from engine import (
     winner,
 )
 from ui.cli import legal_moves_text, parse_move_text, player_name, render_board, render_status
+from ui.replay import ReplayRecorder, write_replay_json
 
 
 class PlayerController(Protocol):
@@ -126,6 +127,7 @@ def play_game(
     initial: Optional[GameState] = None,
     presentation: Optional[PresentationOptions] = None,
     sleep_fn: Callable[[float], None] = time.sleep,
+    replay: Optional[ReplayRecorder] = None,
 ) -> GameResult:
     """Run a full game until terminal state."""
 
@@ -164,13 +166,25 @@ def play_game(
         if options.explain_verbose and decision.details is not None:
             output.write(render_decision_details(decision.details) + "\n")
 
-        state = apply_move(state, decision.move)
+        next_state = apply_move(state, decision.move)
+        if replay is not None:
+            replay.record_turn(
+                turn_number=turn_count + 1,
+                state_before_move=state,
+                controller_name=controller.name,
+                legal_moves_for_turn=legal,
+                decision=decision,
+                state_after_move=next_state,
+            )
+        state = next_state
         turn_count += 1
         if options.demo and options.demo_delay > 0 and not _is_human_controller(controller):
             sleep_fn(options.demo_delay)
 
     counts = score(state)
     winning_color = winner(state)
+    if replay is not None:
+        replay.finish(state, turn_count)
     output.write("\nFinal board\n")
     output.write(render_status(state) + "\n")
     output.write(render_board(state, demo=options.demo) + "\n")
@@ -230,6 +244,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         action="store_true",
         help="show top candidate moves and bot-specific reasoning details when available",
     )
+    parser.add_argument(
+        "--replay-out",
+        help="write a JSON replay log for the completed game",
+    )
     args = parser.parse_args(argv)
     if args.demo_delay < 0:
         parser.error("--demo-delay must be non-negative.")
@@ -244,6 +262,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         minimax_depth=args.minimax_depth,
         mcts_iterations=args.mcts_iterations,
     )
+    replay = ReplayRecorder(black_controller=black.name, white_controller=white.name)
     play_game(
         black,
         white,
@@ -252,7 +271,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             demo_delay=args.demo_delay,
             explain_verbose=args.explain_verbose,
         ),
+        replay=replay if args.replay_out else None,
     )
+    if args.replay_out:
+        write_replay_json(replay.build(), args.replay_out)
+        print(f"Wrote replay JSON to {args.replay_out}")
     return 0
 
 
