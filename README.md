@@ -1,190 +1,179 @@
 # Othello Bot Arena
 
-Othello Bot Arena is a CMPS/CMPM 146 course project centered on game AI rather than UI polish. The project combines a correct, pure Othello engine with a lightweight playable prototype and a growing ladder of bots that can later be compared in tournament-style evaluation.
+Othello Bot Arena is a CMPM/CMPS 146 game AI project built around three connected goals:
 
-## Current Status
+- a playable Othello/Reversi prototype
+- an explainable bot sandbox
+- a comparative evaluation lab for weak and strong agents
 
-Implemented so far:
+The code stays centered on course themes: adversarial search, heuristic evaluation, simulation-based comparison, explainable decision-making, and contrasting baseline agents with stronger search bots.
 
-- pure 8x8 Othello rules engine
-- automated tests for move generation, flipping, passing, terminal states, and scoring
-- baseline AI agents with short move explanations
-- minimax search with alpha-beta pruning
-- MCTS bot as a stretch-search agent
-- tuned MCTS rollouts with heuristic playout guidance
-- minimal CLI prototype for human-vs-bot and bot-vs-bot play
-- round-robin tournament simulation with summary statistics
-- JSON and CSV export support for tournament results
-- repeated evaluation mode with preset bot rosters and consistency summaries
-- lightweight analysis helpers for exported tournament and experiment JSON
+## What The Project Supports
 
-Planned next:
-
-- MCTS tuning and stronger rollout/analysis comparisons if the team wants to push the stretch work further
+- Pure Othello engine with immutable state transitions for 8x8 and 6x6 play
+- Playable terminal game for human-vs-bot and bot-vs-bot matches
+- Demo mode for live presentations with clearer board rendering and labeled move output
+- Optional verbose explanations with top candidate moves and bot-specific reasoning
+- Replay export to JSON plus markdown replay summaries
+- Tournament mode, repeated evaluation mode, JSON/CSV exports, and markdown summary reports
 
 ## Repository Layout
 
-- `engine/`: pure game rules and state transitions
-- `bots/`: AI agents, shared bot interfaces, and evaluation helpers
-- `ui/`: terminal-based playable prototype
-- `sim/`: bot-vs-bot tournament and reporting tools
-- `tests/`: automated correctness tests
-
-## Engine Design
-
-The engine is intentionally UI-independent. It exposes immutable game states and clear successor generation so the same rules layer can support:
-
-- human play
-- baseline bots
-- minimax and alpha-beta search
-- MCTS and other stretch-search experiments
-- tournament simulation without duplicated rules logic
+- `engine/`: pure rules, board geometry helpers, and state transitions
+- `bots/`: bot interface, evaluators, and bot implementations
+- `ui/`: terminal play loop, demo mode, and replay helpers
+- `sim/`: tournaments, repeated experiments, exports, and summary analysis
+- `tests/`: automated correctness and integration coverage
 
 ## Bots
 
-Available bots:
+- `RandomBot`: samples uniformly from legal moves
+- `GreedyBot`: maximizes immediate flips
+- `HeuristicBot`: uses corners, corner danger, mobility, edges, and disc balance
+- `MinimaxBot`: adversarial search with alpha-beta pruning and configurable depth
+- `MCTSBot`: Monte Carlo Tree Search with configurable rollout budget and heuristic-guided playouts
 
-- `RandomBot`: chooses a legal move uniformly at random
-- `GreedyBot`: chooses the move that flips the most discs immediately
-- `HeuristicBot`: evaluates successor states using corners, corner danger, mobility, edge control, and disc balance
-- `MinimaxBot`: searches future positions with alpha-beta pruning and a configurable depth
-- `MCTSBot`: searches with Monte Carlo Tree Search using configurable rollout counts, heuristic-guided playouts, and light positional priors
+The stronger bots reuse the same pure engine and evaluation helpers, so tournament comparisons stay grounded in the same game logic.
 
-Each bot returns both a move and a short explanation string tied to its actual policy.
-
-## Development
-
-Run the test suite with:
+## Run Tests
 
 ```bash
-python3 -m unittest discover -s tests
+python3 -B -m unittest discover -s tests
 ```
 
-## Play The Prototype
+## Play The Game
 
-Run a human vs bot game:
+Human vs heuristic bot:
 
 ```bash
 python3 -m ui --black human --white heuristic
 ```
 
-Watch two bots play:
+Live demo between bots:
 
 ```bash
-python3 -m ui --black greedy --white heuristic
+python3 -m ui --black greedy --white heuristic --demo
 ```
 
-Run against minimax at a specific depth:
+Verbose demo with search bots:
 
 ```bash
-python3 -m ui --black human --white minimax --minimax-depth 3
+python3 -m ui --black minimax --white mcts --demo --explain-verbose
 ```
 
-Run against MCTS with a chosen rollout budget:
+Smaller-board demo:
 
 ```bash
-python3 -m ui --black human --white mcts --mcts-iterations 200
+python3 -m ui --black human --white minimax --board-size 6 --minimax-depth 3
 ```
 
-Other supported controller names are `human`, `random`, `greedy`, `heuristic`, `minimax`, and `mcts`.
+Useful CLI options:
 
-`MCTSBot` is tuned to use:
+- `--demo`: presentation-friendly rendering and labeled move summaries
+- `--demo-delay`: optional pause between bot turns during demos
+- `--explain-verbose`: show top candidate moves and bot-specific reasoning
+- `--replay-out path.json`: write a replay JSON file for the finished game
+- `--board-size {6,8}`: choose the board size
+- `--minimax-depth N`: configure minimax depth
+- `--mcts-iterations N`: configure MCTS rollout budget
 
-- heuristic-guided rollout moves instead of purely random playouts
-- a rollout depth cutoff with heuristic fallback evaluation
-- light corner, edge, and corner-danger priors to reduce noisy root choices
+Default search budgets are tuned to keep live demo commands responsive. Use explicit `--minimax-depth` and `--mcts-iterations` values when you want stronger but slower evaluations.
 
-## Run Tournaments
+## Replay Export
 
-Run a small round-robin tournament:
+Write a replay while a game runs:
+
+```bash
+python3 -m ui --black greedy --white heuristic --demo --replay-out results/game.json
+```
+
+Convert a replay JSON file into markdown:
+
+```bash
+python3 -m ui.replay results/game.json --markdown-out results/game.md
+```
+
+Replay turns include:
+
+- board state before the move
+- player to move
+- legal moves
+- chosen move
+- explanation text
+- score after the move
+
+## Run Experiments
+
+Small tournament:
 
 ```bash
 python3 -m sim random greedy heuristic --games-per-pair 2
 ```
 
-Include minimax at a chosen depth:
+Repeated search-focused comparison:
 
 ```bash
-python3 -m sim greedy heuristic minimax --games-per-pair 2 --minimax-depth 3
+python3 -m sim --preset stretch --games-per-pair 1 --repetitions 2
 ```
 
-Run a repeated evaluation with a preset roster:
-
-```bash
-python3 -m sim --preset baseline --games-per-pair 1 --repetitions 5
-```
-
-Compare the search-oriented roster repeatedly:
-
-```bash
-python3 -m sim --preset search --games-per-pair 2 --repetitions 3 --minimax-depth 3
-```
-
-Compare the stretch-search roster with MCTS included:
-
-```bash
-python3 -m sim --preset stretch --games-per-pair 1 --repetitions 3 --minimax-depth 3 --mcts-iterations 200
-```
-
-The simulator prints:
-
-- wins, losses, and draws
-- average disc differential
-- average final score
-- first-player results across the tournament
-- per-matchup summaries
-- per-match scorelines
-- repeated-mode first-place counts and average rank
-
-Write structured experiment outputs:
-
-```bash
-python3 -m sim greedy heuristic minimax \
-  --games-per-pair 2 \
-  --minimax-depth 3 \
-  --json-out results/tournament.json \
-  --standings-csv results/standings.csv \
-  --matches-csv results/matches.csv
-```
-
-You can include MCTS directly in explicit rosters as well:
+6x6 repeated evaluation with exports:
 
 ```bash
 python3 -m sim heuristic minimax mcts \
-  --games-per-pair 1 \
+  --games-per-pair 2 \
+  --repetitions 3 \
+  --board-size 6 \
   --minimax-depth 3 \
-  --mcts-iterations 200
+  --mcts-iterations 200 \
+  --json-out results/experiment.json \
+  --standings-csv results/standings.csv \
+  --matches-csv results/matches.csv \
+  --summary-md results/summary.md
 ```
 
-In repeated mode, `--json-out` writes the full experiment summary, while the CSV exports contain aggregate standings and aggregate per-match data across all repetitions.
+Preset rosters:
 
-## Analyze Exported Results
+- `baseline`: random, greedy, heuristic
+- `search`: heuristic, minimax
+- `stretch`: heuristic, minimax, mcts
+- `full`: random, greedy, heuristic, minimax, mcts
 
-Analyze a tournament JSON export:
+## Analyze Results
 
-```bash
-python3 -m sim.analysis results/tournament.json
-```
-
-Analyze a repeated experiment export:
+Analyze an exported tournament or experiment JSON file:
 
 ```bash
 python3 -m sim.analysis results/experiment.json
 ```
 
-The analysis report summarizes:
+Write a presentation-ready markdown summary:
 
-- win-rate rankings
-- average rank and first-place finishes when repeated-mode data is available
-- close or split matchups
+```bash
+python3 -m sim.analysis results/experiment.json --markdown-out results/summary.md
+```
+
+Summary output highlights:
+
+- win rate rankings
+- average margin
+- repeated-run average rank and first-place finishes
+- matchup notes
 - possible first-player effects
+
+## Architecture Notes
+
+- `engine/` stays pure and UI-independent so minimax, MCTS, and future bots all share one rules layer.
+- `bots/` separates weak and strong agents cleanly, which makes tournaments and writeups easier.
+- `sim/` keeps comparative evaluation reusable instead of tying experiments to the playable UI.
+- explanation strings and verbose candidate details are attached to actual bot decisions, not mocked presentation text.
 
 ## Course Framing
 
-This repository is meant to stay focused on game AI:
+This project is already suitable for discussing:
 
-- adversarial search
-- heuristic and utility-style evaluation
-- comparing weak and strong agents
-- explainable move choices
-- architecture that can later support tournaments and analysis
+- adversarial search and alpha-beta pruning
+- utility-style heuristic design
+- weak-vs-strong agent comparisons
+- explainable game AI outputs
+- tournament-style evaluation and repeated experiments
+- MCTS as a stretch-search extension
