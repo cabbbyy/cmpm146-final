@@ -7,7 +7,7 @@ from itertools import combinations
 from typing import Dict, Optional, Sequence, Tuple
 
 from bots import BOT_SPECS, build_bot
-from engine import BLACK, WHITE, score, winner
+from engine import BLACK, BOARD_SIZE, SUPPORTED_BOARD_SIZES, WHITE, score, winner
 from sim.export import write_matches_csv, write_standings_csv, write_tournament_json
 from sim.presets import PRESET_ROSTERS, resolve_roster
 from ui.game import play_game
@@ -92,6 +92,7 @@ class MatchupStats:
 class TournamentResult:
     """Full tournament output."""
 
+    board_size: int
     entries: Tuple[BotEntry, ...]
     matches: Tuple[MatchResult, ...]
     standings: Tuple[BotStats, ...]
@@ -101,11 +102,20 @@ class TournamentResult:
     draws: int
 
 
-def run_match(black: BotEntry, white: BotEntry) -> MatchResult:
+def run_match(
+    black: BotEntry,
+    white: BotEntry,
+    board_size: int = BOARD_SIZE,
+) -> MatchResult:
     """Run one bot-vs-bot match."""
 
     transcript = io.StringIO()
-    game = play_game(black.create(), white.create(), output=transcript)
+    game = play_game(
+        black.create(),
+        white.create(),
+        output=transcript,
+        board_size=board_size,
+    )
     counts = score(game.final_state)
     winning_color = winner(game.final_state)
     if winning_color is None:
@@ -128,6 +138,7 @@ def run_match(black: BotEntry, white: BotEntry) -> MatchResult:
 def run_round_robin(
     entries: Sequence[BotEntry],
     games_per_pair: int = 2,
+    board_size: int = BOARD_SIZE,
 ) -> TournamentResult:
     """Run a round-robin tournament across all bot entries."""
 
@@ -144,13 +155,14 @@ def run_round_robin(
                 black, white = left, right
             else:
                 black, white = right, left
-            matches.append(run_match(black, white))
+            matches.append(run_match(black, white, board_size=board_size))
 
     standings, black_wins, white_wins, draws = summarize_tournament(
         normalized_entries, matches
     )
     matchups = summarize_matchups(matches)
     return TournamentResult(
+        board_size=board_size,
         entries=normalized_entries,
         matches=tuple(matches),
         standings=standings,
@@ -233,6 +245,7 @@ def render_tournament_report(result: TournamentResult) -> str:
 
     lines = [
         "Othello Bot Arena Tournament",
+        f"Board size: {result.board_size}x{result.board_size}",
         f"Bots: {', '.join(entry.label for entry in result.entries)}",
         f"Matches played: {len(result.matches)}",
         (
@@ -405,6 +418,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--matches-csv",
         help="write per-match results to a CSV file; repeated mode writes aggregate matches",
     )
+    parser.add_argument(
+        "--board-size",
+        type=int,
+        choices=SUPPORTED_BOARD_SIZES,
+        default=BOARD_SIZE,
+        help="board size to use for all matches in the evaluation",
+    )
     args = parser.parse_args(argv)
 
     if args.repetitions < 1:
@@ -420,7 +440,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         mcts_iterations=args.mcts_iterations,
     )
     if args.repetitions == 1:
-        result = run_round_robin(entries, games_per_pair=args.games_per_pair)
+        result = run_round_robin(
+            entries,
+            games_per_pair=args.games_per_pair,
+            board_size=args.board_size,
+        )
         print(render_tournament_report(result))
         if args.json_out:
             write_tournament_json(result, args.json_out)
@@ -439,6 +463,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         entries,
         repetitions=args.repetitions,
         games_per_pair=args.games_per_pair,
+        board_size=args.board_size,
     )
     print(render_experiment_report(result))
     if args.json_out:

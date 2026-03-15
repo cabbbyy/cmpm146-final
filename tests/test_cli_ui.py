@@ -11,6 +11,7 @@ class CliUiTests(unittest.TestCase):
     def test_parse_move_text_supports_board_notation_and_pass(self):
         self.assertEqual(parse_move_text("d3"), (2, 3))
         self.assertEqual(parse_move_text("A8"), (7, 0))
+        self.assertEqual(parse_move_text("F6", board_size=6), (5, 5))
         self.assertIsNone(parse_move_text("pass"))
 
     def test_render_board_marks_legal_moves_with_asterisks(self):
@@ -39,6 +40,16 @@ class CliUiTests(unittest.TestCase):
         transcript = output.getvalue()
         self.assertIn("Black: GreedyBot | White: GreedyBot", transcript)
         self.assertIn("Game over:", transcript)
+
+    def test_play_game_supports_six_by_six_boards(self):
+        output = io.StringIO()
+
+        result = play_game(GreedyBot(), GreedyBot(), output=output, board_size=6)
+
+        transcript = output.getvalue()
+        self.assertTrue(is_terminal(result.final_state))
+        self.assertEqual(sum(row.count("B") + row.count("W") for row in result.final_state.board), 36)
+        self.assertIn("a b c d e f", transcript)
 
     def test_play_game_demo_mode_shows_labeled_turns_and_summary(self):
         output = io.StringIO()

@@ -23,8 +23,10 @@ class ExperimentModeTests(unittest.TestCase):
             build_entries(["heuristic", "minimax"], minimax_depth=2),
             repetitions=2,
             games_per_pair=1,
+            board_size=6,
         )
 
+        self.assertEqual(result.board_size, 6)
         self.assertEqual(result.repetitions, 2)
         self.assertEqual(len(result.runs), 2)
         self.assertEqual(len(result.aggregate.matches), 2)
@@ -53,6 +55,8 @@ class ExperimentModeTests(unittest.TestCase):
                         "1",
                         "--minimax-depth",
                         "2",
+                        "--board-size",
+                        "6",
                         "--json-out",
                         str(json_path),
                         "--standings-csv",
@@ -64,6 +68,7 @@ class ExperimentModeTests(unittest.TestCase):
 
             self.assertEqual(exit_code, 0)
             payload = json.loads(json_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["board_size"], 6)
             self.assertEqual(payload["repetitions"], 2)
             self.assertIn("aggregate", payload)
             self.assertIn("summaries", payload)
@@ -75,6 +80,7 @@ class ExperimentModeTests(unittest.TestCase):
 
             output = stdout.getvalue()
             self.assertIn("Othello Bot Arena Repeated Evaluation", output)
+            self.assertIn("Board size: 6x6", output)
             self.assertIn("Wrote experiment JSON export", output)
 
 

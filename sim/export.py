@@ -13,6 +13,7 @@ def tournament_to_dict(result: "TournamentResult") -> Dict[str, object]:
     """Convert a tournament result into a JSON-serializable dictionary."""
 
     return {
+        "board_size": result.board_size,
         "entries": [
             {
                 "label": entry.label,

@@ -2,7 +2,7 @@ import random
 import unittest
 
 from bots import MCTSBot
-from engine import WHITE, GameState
+from engine import WHITE, GameState, initial_state, legal_moves
 
 
 def make_state(rows, current_player):
@@ -90,6 +90,14 @@ class MCTSBotTests(unittest.TestCase):
             MCTSBot(iterations=32, rollout_epsilon=-0.1)
         with self.assertRaises(ValueError):
             MCTSBot(iterations=32, rollout_epsilon=1.1)
+
+    def test_mcts_supports_six_by_six_opening_states(self):
+        state = initial_state(board_size=6)
+
+        decision = MCTSBot(iterations=16, rng=random.Random(5)).decide(state)
+
+        self.assertIn(decision.move, legal_moves(state))
+        self.assertIsNotNone(decision.details)
 
 
 if __name__ == "__main__":

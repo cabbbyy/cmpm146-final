@@ -36,6 +36,16 @@ class TournamentTests(unittest.TestCase):
         self.assertGreater(result.turns, 0)
         self.assertIn(result.winner_label, {"greedy", "heuristic", None})
 
+    def test_run_match_supports_six_by_six_games(self):
+        result = run_match(
+            BotEntry(label="greedy", spec="greedy"),
+            BotEntry(label="heuristic", spec="heuristic"),
+            board_size=6,
+        )
+
+        self.assertEqual(result.black_score + result.white_score, 36)
+        self.assertGreater(result.turns, 0)
+
     def test_summarize_tournament_aggregates_wins_draws_and_disc_diff(self):
         entries = (
             BotEntry(label="alpha", spec="greedy"),
@@ -75,15 +85,21 @@ class TournamentTests(unittest.TestCase):
         self.assertEqual(beta.total_disc_diff, -16)
 
     def test_run_round_robin_and_report_cover_all_pairings(self):
-        result = run_round_robin(build_entries(["greedy", "heuristic"]), games_per_pair=2)
+        result = run_round_robin(
+            build_entries(["greedy", "heuristic"]),
+            games_per_pair=2,
+            board_size=6,
+        )
 
         self.assertEqual(len(result.matches), 2)
+        self.assertEqual(result.board_size, 6)
         self.assertEqual({result.matches[0].black_label, result.matches[0].white_label}, {"greedy", "heuristic"})
         self.assertEqual({result.matches[1].black_label, result.matches[1].white_label}, {"greedy", "heuristic"})
         self.assertNotEqual(result.matches[0].black_label, result.matches[1].black_label)
 
         report = render_tournament_report(result)
         self.assertIn("Othello Bot Arena Tournament", report)
+        self.assertIn("Board size: 6x6", report)
         self.assertIn("Standings", report)
         self.assertIn("Matchup Summary", report)
         self.assertIn("Match Results", report)

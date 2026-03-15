@@ -1,4 +1,4 @@
-"""Pure Othello rules for standard 8x8 play.
+"""Pure Othello rules for configurable Othello play.
 
 The engine uses zero-based ``(row, col)`` coordinates measured from the
 top-left corner of the board. State transitions are immutable so future search
@@ -12,6 +12,7 @@ BLACK = "B"
 WHITE = "W"
 EMPTY = "."
 BOARD_SIZE = 8
+SUPPORTED_BOARD_SIZES = (6, 8)
 
 Position = Tuple[int, int]
 Move = Optional[Position]
@@ -37,12 +38,26 @@ class GameState:
     current_player: str = BLACK
     consecutive_passes: int = 0
 
+    def __post_init__(self) -> None:
+        validate_board(self.board)
+        if self.current_player not in (BLACK, WHITE):
+            raise ValueError("Player must be 'B' or 'W'.")
+        if self.consecutive_passes < 0:
+            raise ValueError("consecutive_passes cannot be negative.")
 
-def initial_board() -> Board:
-    """Return the standard 8x8 starting board."""
+    @property
+    def size(self) -> int:
+        """Return the side length of the square board."""
 
-    rows = [[EMPTY for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)]
-    middle = BOARD_SIZE // 2
+        return len(self.board)
+
+
+def initial_board(board_size: int = BOARD_SIZE) -> Board:
+    """Return the starting board for a supported size."""
+
+    validate_board_size(board_size)
+    rows = [[EMPTY for _ in range(board_size)] for _ in range(board_size)]
+    middle = board_size // 2
     rows[middle - 1][middle - 1] = WHITE
     rows[middle - 1][middle] = BLACK
     rows[middle][middle - 1] = BLACK
@@ -50,10 +65,10 @@ def initial_board() -> Board:
     return tuple(tuple(row) for row in rows)
 
 
-def initial_state() -> GameState:
-    """Return the standard starting state with black to move first."""
+def initial_state(board_size: int = BOARD_SIZE) -> GameState:
+    """Return the starting state for a supported board size."""
 
-    return GameState(board=initial_board(), current_player=BLACK)
+    return GameState(board=initial_board(board_size=board_size), current_player=BLACK)
 
 
 def opponent(player: str) -> str:
@@ -66,11 +81,28 @@ def opponent(player: str) -> str:
     raise ValueError("Player must be 'B' or 'W'.")
 
 
-def in_bounds(position: Position) -> bool:
-    """Return whether a board position lies on the 8x8 board."""
+def validate_board_size(board_size: int) -> None:
+    """Reject unsupported board sizes."""
+
+    if board_size not in SUPPORTED_BOARD_SIZES:
+        supported = ", ".join(str(size) for size in SUPPORTED_BOARD_SIZES)
+        raise ValueError(f"Board size must be one of: {supported}.")
+
+
+def validate_board(board: Board) -> None:
+    """Validate that a board is square and uses a supported size."""
+
+    board_size = len(board)
+    validate_board_size(board_size)
+    if any(len(row) != board_size for row in board):
+        raise ValueError("Board must be square.")
+
+
+def in_bounds(position: Position, board_size: int = BOARD_SIZE) -> bool:
+    """Return whether a board position lies on the current board."""
 
     row, col = position
-    return 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE
+    return 0 <= row < board_size and 0 <= col < board_size
 
 
 def piece_at(board: Board, position: Position) -> str:
@@ -89,7 +121,7 @@ def flips_for_move(
     """
 
     active_player = state.current_player if player is None else player
-    if not in_bounds(move):
+    if not in_bounds(move, state.size):
         return ()
     if piece_at(state.board, move) != EMPTY:
         return ()
@@ -107,8 +139,8 @@ def legal_moves(
 
     active_player = state.current_player if player is None else player
     moves = []
-    for row in range(BOARD_SIZE):
-        for col in range(BOARD_SIZE):
+    for row in range(state.size):
+        for col in range(state.size):
             move = (row, col)
             if flips_for_move(state, move, active_player):
                 moves.append(move)
@@ -201,6 +233,45 @@ def successors(state: GameState) -> Tuple[Tuple[Move, GameState], ...]:
     return tuple((move, apply_move(state, move)) for move in legal_actions(state))
 
 
+def corner_positions(board_size: int) -> Tuple[Position, ...]:
+    """Return corner coordinates for a supported board size."""
+
+    validate_board_size(board_size)
+    last = board_size - 1
+    return ((0, 0), (0, last), (last, 0), (last, last))
+
+
+def corner_adjacent_positions(board_size: int) -> Dict[Position, Tuple[Position, ...]]:
+    """Return squares adjacent to each corner."""
+
+    validate_board_size(board_size)
+    last = board_size - 1
+    next_to_last = board_size - 2
+    return {
+        (0, 0): ((0, 1), (1, 0), (1, 1)),
+        (0, last): ((0, next_to_last), (1, next_to_last), (1, last)),
+        (last, 0): ((next_to_last, 0), (next_to_last, 1), (last, 1)),
+        (last, last): (
+            (next_to_last, next_to_last),
+            (next_to_last, last),
+            (last, next_to_last),
+        ),
+    }
+
+
+def edge_positions(board_size: int) -> Tuple[Position, ...]:
+    """Return non-corner edge coordinates for a supported board size."""
+
+    corners = set(corner_positions(board_size))
+    last = board_size - 1
+    return tuple(
+        (row, col)
+        for row in range(board_size)
+        for col in range(board_size)
+        if (row in (0, last) or col in (0, last)) and (row, col) not in corners
+    )
+
+
 def _captures_in_direction(
     board: Board, move: Position, player: str, direction: Position
 ) -> Tuple[Position, ...]:
@@ -210,7 +281,7 @@ def _captures_in_direction(
     col += direction[1]
 
     captured = []
-    while in_bounds((row, col)):
+    while in_bounds((row, col), len(board)):
         disc = board[row][col]
         if disc == enemy:
             captured.append((row, col))

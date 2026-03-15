@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Sequence, Tuple
 
+from engine import BOARD_SIZE
 from sim.export import tournament_to_dict
 from sim.tournament import (
     BotEntry,
@@ -34,6 +35,7 @@ class ExperimentBotSummary:
 class ExperimentResult:
     """Repeated evaluation output built from multiple tournament runs."""
 
+    board_size: int
     entries: Tuple[BotEntry, ...]
     repetitions: int
     games_per_pair: int
@@ -46,6 +48,7 @@ def run_experiment(
     entries: Sequence[BotEntry],
     repetitions: int = 5,
     games_per_pair: int = 2,
+    board_size: int = BOARD_SIZE,
 ) -> ExperimentResult:
     """Run the same round-robin experiment multiple times."""
 
@@ -54,12 +57,17 @@ def run_experiment(
 
     normalized_entries = tuple(entries)
     runs = tuple(
-        run_round_robin(normalized_entries, games_per_pair=games_per_pair)
+        run_round_robin(
+            normalized_entries,
+            games_per_pair=games_per_pair,
+            board_size=board_size,
+        )
         for _ in range(repetitions)
     )
     aggregate = aggregate_experiment_runs(normalized_entries, runs)
     summaries = summarize_experiment_runs(runs, aggregate)
     return ExperimentResult(
+        board_size=board_size,
         entries=normalized_entries,
         repetitions=repetitions,
         games_per_pair=games_per_pair,
@@ -79,6 +87,7 @@ def aggregate_experiment_runs(
     standings, black_wins, white_wins, draws = summarize_tournament(entries, matches)
     matchups = summarize_matchups(matches)
     return TournamentResult(
+        board_size=runs[0].board_size if runs else BOARD_SIZE,
         entries=tuple(entries),
         matches=matches,
         standings=standings,
@@ -122,6 +131,7 @@ def render_experiment_report(result: ExperimentResult) -> str:
 
     lines = [
         "Othello Bot Arena Repeated Evaluation",
+        f"Board size: {result.board_size}x{result.board_size}",
         f"Bots: {', '.join(entry.label for entry in result.entries)}",
         f"Runs: {result.repetitions}",
         f"Games per unordered pair per run: {result.games_per_pair}",
@@ -162,6 +172,7 @@ def experiment_to_dict(result: ExperimentResult) -> Dict[str, object]:
     """Convert a repeated evaluation into a JSON-serializable dictionary."""
 
     return {
+        "board_size": result.board_size,
         "repetitions": result.repetitions,
         "games_per_pair": result.games_per_pair,
         "entries": [

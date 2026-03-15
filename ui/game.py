@@ -16,6 +16,8 @@ from bots import (
 )
 from engine import (
     BLACK,
+    BOARD_SIZE,
+    SUPPORTED_BOARD_SIZES,
     WHITE,
     GameState,
     Move,
@@ -128,11 +130,12 @@ def play_game(
     presentation: Optional[PresentationOptions] = None,
     sleep_fn: Callable[[float], None] = time.sleep,
     replay: Optional[ReplayRecorder] = None,
+    board_size: int = BOARD_SIZE,
 ) -> GameResult:
     """Run a full game until terminal state."""
 
     options = PresentationOptions() if presentation is None else presentation
-    state = initial_state() if initial is None else initial
+    state = initial_state(board_size=board_size) if initial is None else initial
     turn_count = 0
     if options.demo:
         output.write("Othello Bot Arena Demo\n")
@@ -248,6 +251,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--replay-out",
         help="write a JSON replay log for the completed game",
     )
+    parser.add_argument(
+        "--board-size",
+        type=int,
+        choices=SUPPORTED_BOARD_SIZES,
+        default=BOARD_SIZE,
+        help="board size to use for the game",
+    )
     args = parser.parse_args(argv)
     if args.demo_delay < 0:
         parser.error("--demo-delay must be non-negative.")
@@ -272,6 +282,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             explain_verbose=args.explain_verbose,
         ),
         replay=replay if args.replay_out else None,
+        board_size=args.board_size,
     )
     if args.replay_out:
         write_replay_json(replay.build(), args.replay_out)

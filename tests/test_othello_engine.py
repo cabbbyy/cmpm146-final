@@ -11,6 +11,7 @@ from engine import (
     legal_moves,
     piece_at,
     score,
+    validate_board_size,
 )
 
 
@@ -32,6 +33,15 @@ class OthelloEngineTests(unittest.TestCase):
             {(2, 3), (3, 2), (4, 5), (5, 4)},
         )
         self.assertEqual(set(legal_actions(state)), {(2, 3), (3, 2), (4, 5), (5, 4)})
+
+    def test_initial_state_supports_six_by_six_play(self):
+        state = initial_state(board_size=6)
+
+        self.assertEqual(state.size, 6)
+        self.assertEqual(
+            set(legal_moves(state)),
+            {(1, 2), (2, 1), (3, 4), (4, 3)},
+        )
 
     def test_apply_move_places_disc_and_flips_captured_line(self):
         state = initial_state()
@@ -101,6 +111,12 @@ class OthelloEngineTests(unittest.TestCase):
         )
 
         self.assertEqual(score(state), {BLACK: 3, WHITE: 2})
+
+    def test_invalid_board_size_is_rejected(self):
+        with self.assertRaises(ValueError):
+            validate_board_size(10)
+        with self.assertRaises(ValueError):
+            initial_state(board_size=10)
 
 
 if __name__ == "__main__":

@@ -20,29 +20,14 @@ from engine import (
     WHITE,
     GameState,
     Move,
-    Position,
     apply_move,
+    corner_adjacent_positions,
+    corner_positions,
     is_terminal,
     legal_actions,
     opponent,
     winner,
 )
-
-_CORNERS: Tuple[Position, ...] = ((0, 0), (0, 7), (7, 0), (7, 7))
-_CORNER_ADJACENT = {
-    (0, 1),
-    (1, 0),
-    (1, 1),
-    (0, 6),
-    (1, 6),
-    (1, 7),
-    (6, 0),
-    (6, 1),
-    (7, 1),
-    (6, 6),
-    (6, 7),
-    (7, 6),
-}
 
 
 @dataclass(frozen=True)
@@ -246,7 +231,8 @@ class MCTSBot(OthelloBot):
         actions = legal_actions(state)
         if len(actions) == 1:
             return actions[0]
-        corner_actions = [action for action in actions if action in _CORNERS]
+        corners = set(corner_positions(state.size))
+        corner_actions = [action for action in actions if action in corners]
         if corner_actions:
             return self._rng.choice(corner_actions)
         if self._rng.random() < self.rollout_epsilon:
@@ -262,7 +248,8 @@ class MCTSBot(OthelloBot):
         for action in actions:
             successor = apply_move(state, action)
             score = evaluate_state(successor, player).total + self._heuristic_move_bonus(
-                action
+                action,
+                state.size,
             )
             if best_action is None or score > best_score:
                 best_action = action
@@ -309,9 +296,13 @@ class MCTSBot(OthelloBot):
             if best_child is None:
                 best_child = child
                 continue
-            child_score = child.average_value() + self._rollout_move_bonus(child.move)
+            child_score = child.average_value() + self._rollout_move_bonus(
+                child.move,
+                root.state.size,
+            )
             best_score = best_child.average_value() + self._rollout_move_bonus(
-                best_child.move
+                best_child.move,
+                root.state.size,
             )
             if child_score > best_score:
                 best_child = child
@@ -371,17 +362,25 @@ class MCTSBot(OthelloBot):
             ),
         )
 
-    def _heuristic_move_bonus(self, move: Move) -> int:
+    def _heuristic_move_bonus(self, move: Move, board_size: int) -> int:
         if move is None:
             return 0
-        if move in _CORNERS:
+        if move in corner_positions(board_size):
             return 12
-        if move in _CORNER_ADJACENT:
+        corner_adjacent = {
+            adjacent
+            for positions in corner_adjacent_positions(board_size).values()
+            for adjacent in positions
+        }
+        if move in corner_adjacent:
             return -8
         row, col = move
-        if row in (0, 7) or col in (0, 7):
+        last = board_size - 1
+        if row in (0, last) or col in (0, last):
             return 3
         return 0
 
-    def _rollout_move_bonus(self, move: Move) -> float:
-        return self._heuristic_move_bonus(move) / 100.0
+    def _rollout_move_bonus(self, move: Move, board_size: int) -> float:
+        if move is None:
+            return 0.0
+        return self._heuristic_move_bonus(move, board_size) / 100.0

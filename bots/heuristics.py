@@ -1,23 +1,19 @@
 """Heuristic evaluation helpers shared by stronger Othello bots."""
 
 from dataclasses import dataclass
-from typing import Tuple
 
-from engine import BLACK, WHITE, EMPTY, GameState, Position, legal_moves, opponent, score
-
-_CORNERS: Tuple[Position, ...] = ((0, 0), (0, 7), (7, 0), (7, 7))
-_EDGE_SQUARES: Tuple[Position, ...] = tuple(
-    (row, col)
-    for row in range(8)
-    for col in range(8)
-    if (row in (0, 7) or col in (0, 7)) and (row, col) not in _CORNERS
+from engine import (
+    BLACK,
+    WHITE,
+    EMPTY,
+    GameState,
+    corner_adjacent_positions,
+    corner_positions,
+    edge_positions,
+    legal_moves,
+    opponent,
+    score,
 )
-_CORNER_ADJACENT = {
-    (0, 0): ((0, 1), (1, 0), (1, 1)),
-    (0, 7): ((0, 6), (1, 6), (1, 7)),
-    (7, 0): ((6, 0), (6, 1), (7, 1)),
-    (7, 7): ((6, 6), (6, 7), (7, 6)),
-}
 
 _CORNER_WEIGHT = 25
 _CORNER_RISK_WEIGHT = -8
@@ -49,19 +45,23 @@ def evaluate_state(state: GameState, color: str) -> HeuristicBreakdown:
     disc_weight = (
         _LATE_DISC_WEIGHT if occupied >= _LATE_GAME_THRESHOLD else _EARLY_DISC_WEIGHT
     )
+    corners = corner_positions(state.size)
+    edges = edge_positions(state.size)
+    corner_adjacent = corner_adjacent_positions(state.size)
 
     corner_score = _CORNER_WEIGHT * (
-        _count_positions(state, _CORNERS, color) - _count_positions(state, _CORNERS, enemy)
+        _count_positions(state, corners, color) - _count_positions(state, corners, enemy)
     )
     corner_risk_score = _CORNER_RISK_WEIGHT * (
-        _corner_risk_count(state, color) - _corner_risk_count(state, enemy)
+        _corner_risk_count(state, corner_adjacent, color)
+        - _corner_risk_count(state, corner_adjacent, enemy)
     )
     mobility_score = _MOBILITY_WEIGHT * (
         len(legal_moves(state, color)) - len(legal_moves(state, enemy))
     )
     edge_score = _EDGE_WEIGHT * (
-        _count_positions(state, _EDGE_SQUARES, color)
-        - _count_positions(state, _EDGE_SQUARES, enemy)
+        _count_positions(state, edges, color)
+        - _count_positions(state, edges, enemy)
     )
     disc_score = disc_weight * (counts[color] - counts[enemy])
 
@@ -102,13 +102,13 @@ def dominant_reason(breakdown: HeuristicBreakdown) -> str:
     return "it gives the best overall heuristic balance available"
 
 
-def _count_positions(state: GameState, positions: Tuple[Position, ...], color: str) -> int:
+def _count_positions(state: GameState, positions, color: str) -> int:
     return sum(1 for row, col in positions if state.board[row][col] == color)
 
 
-def _corner_risk_count(state: GameState, color: str) -> int:
+def _corner_risk_count(state: GameState, corner_adjacent, color: str) -> int:
     count = 0
-    for corner, adjacent_positions in _CORNER_ADJACENT.items():
+    for corner, adjacent_positions in corner_adjacent.items():
         row, col = corner
         if state.board[row][col] != EMPTY:
             continue

@@ -1,7 +1,7 @@
 import unittest
 
 from bots import MinimaxBot
-from engine import WHITE, BLACK, GameState
+from engine import WHITE, BLACK, GameState, initial_state, legal_moves
 
 
 def make_state(rows, current_player):
@@ -62,6 +62,14 @@ class MinimaxBotTests(unittest.TestCase):
     def test_invalid_depth_is_rejected(self):
         with self.assertRaises(ValueError):
             MinimaxBot(depth=0)
+
+    def test_minimax_supports_six_by_six_opening_states(self):
+        state = initial_state(board_size=6)
+
+        decision = MinimaxBot(depth=2).decide(state)
+
+        self.assertIn(decision.move, legal_moves(state))
+        self.assertIsNotNone(decision.details)
 
 
 if __name__ == "__main__":

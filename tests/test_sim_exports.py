@@ -15,10 +15,15 @@ from sim import (
 
 class SimulationExportTests(unittest.TestCase):
     def test_tournament_to_dict_includes_summary_matchups_and_matches(self):
-        result = run_round_robin(build_entries(["greedy", "heuristic"]), games_per_pair=1)
+        result = run_round_robin(
+            build_entries(["greedy", "heuristic"]),
+            games_per_pair=1,
+            board_size=6,
+        )
 
         payload = tournament_to_dict(result)
 
+        self.assertEqual(payload["board_size"], 6)
         self.assertIn("summary", payload)
         self.assertIn("matchups", payload)
         self.assertIn("matches", payload)
@@ -27,7 +32,11 @@ class SimulationExportTests(unittest.TestCase):
         self.assertEqual(len(payload["matches"]), 1)
 
     def test_export_writers_create_json_and_csv_files(self):
-        result = run_round_robin(build_entries(["greedy", "heuristic"]), games_per_pair=1)
+        result = run_round_robin(
+            build_entries(["greedy", "heuristic"]),
+            games_per_pair=1,
+            board_size=6,
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -40,6 +49,7 @@ class SimulationExportTests(unittest.TestCase):
             write_matches_csv(result, str(matches_path))
 
             payload = json.loads(json_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["board_size"], 6)
             self.assertIn("entries", payload)
             self.assertIn("standings", payload)
 
