@@ -20,11 +20,16 @@ class BotEntry:
     label: str
     spec: str
     minimax_depth: int = 3
+    mcts_iterations: int = 200
 
     def create(self):
         """Build a fresh bot instance for a single game."""
 
-        return build_bot(self.spec, minimax_depth=self.minimax_depth)
+        return build_bot(
+            self.spec,
+            minimax_depth=self.minimax_depth,
+            mcts_iterations=self.mcts_iterations,
+        )
 
 
 @dataclass(frozen=True)
@@ -309,7 +314,11 @@ def summarize_matchups(matches: Sequence[MatchResult]) -> Tuple[MatchupStats, ..
     )
 
 
-def build_entries(specs: Sequence[str], minimax_depth: int = 3) -> Tuple[BotEntry, ...]:
+def build_entries(
+    specs: Sequence[str],
+    minimax_depth: int = 3,
+    mcts_iterations: int = 200,
+) -> Tuple[BotEntry, ...]:
     """Create tournament entries from short bot names."""
 
     if len(specs) < 2:
@@ -324,6 +333,8 @@ def build_entries(specs: Sequence[str], minimax_depth: int = 3) -> Tuple[BotEntr
         label = (
             f"minimax(d={minimax_depth})"
             if normalized == "minimax"
+            else f"mcts(n={mcts_iterations})"
+            if normalized == "mcts"
             else normalized
         )
         if label in seen_labels:
@@ -331,7 +342,14 @@ def build_entries(specs: Sequence[str], minimax_depth: int = 3) -> Tuple[BotEntr
                 f"Duplicate tournament entry label is not supported: {label}"
             )
         seen_labels.add(label)
-        entries.append(BotEntry(label=label, spec=normalized, minimax_depth=minimax_depth))
+        entries.append(
+            BotEntry(
+                label=label,
+                spec=normalized,
+                minimax_depth=minimax_depth,
+                mcts_iterations=mcts_iterations,
+            )
+        )
     return tuple(entries)
 
 
@@ -364,6 +382,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="search depth used by any minimax entry",
     )
     parser.add_argument(
+        "--mcts-iterations",
+        type=int,
+        default=200,
+        help="rollout count used by any MCTS entry",
+    )
+    parser.add_argument(
         "--repetitions",
         type=int,
         default=1,
@@ -390,7 +414,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     except ValueError as exc:
         parser.error(str(exc))
 
-    entries = build_entries(roster, minimax_depth=args.minimax_depth)
+    entries = build_entries(
+        roster,
+        minimax_depth=args.minimax_depth,
+        mcts_iterations=args.mcts_iterations,
+    )
     if args.repetitions == 1:
         result = run_round_robin(entries, games_per_pair=args.games_per_pair)
         print(render_tournament_report(result))

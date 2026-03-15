@@ -94,13 +94,18 @@ def build_controller(
     input_fn=input,
     output: TextIO = sys.stdout,
     minimax_depth: int = 3,
+    mcts_iterations: int = 200,
 ) -> PlayerController:
     """Create a human or bot controller from a short CLI name."""
 
     normalized = spec.strip().lower()
     if normalized == "human":
         return HumanCLIPlayer(input_fn=input_fn, output=output)
-    return build_bot(normalized, minimax_depth=minimax_depth)
+    return build_bot(
+        normalized,
+        minimax_depth=minimax_depth,
+        mcts_iterations=mcts_iterations,
+    )
 
 
 def play_game(
@@ -172,10 +177,24 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default=3,
         help="search depth used by any minimax controller",
     )
+    parser.add_argument(
+        "--mcts-iterations",
+        type=int,
+        default=200,
+        help="rollout count used by any MCTS controller",
+    )
     args = parser.parse_args(argv)
 
-    black = build_controller(args.black, minimax_depth=args.minimax_depth)
-    white = build_controller(args.white, minimax_depth=args.minimax_depth)
+    black = build_controller(
+        args.black,
+        minimax_depth=args.minimax_depth,
+        mcts_iterations=args.mcts_iterations,
+    )
+    white = build_controller(
+        args.white,
+        minimax_depth=args.minimax_depth,
+        mcts_iterations=args.mcts_iterations,
+    )
     play_game(black, white)
     return 0
 

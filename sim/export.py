@@ -18,6 +18,7 @@ def tournament_to_dict(result: "TournamentResult") -> Dict[str, object]:
                 "label": entry.label,
                 "spec": entry.spec,
                 "minimax_depth": entry.minimax_depth,
+                "mcts_iterations": entry.mcts_iterations,
             }
             for entry in result.entries
         ],

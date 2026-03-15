@@ -5,7 +5,8 @@ from typing import Optional, Sequence, Tuple
 PRESET_ROSTERS = {
     "baseline": ("random", "greedy", "heuristic"),
     "search": ("heuristic", "minimax"),
-    "full": ("random", "greedy", "heuristic", "minimax"),
+    "stretch": ("heuristic", "minimax", "mcts"),
+    "full": ("random", "greedy", "heuristic", "minimax", "mcts"),
 }
 
 
