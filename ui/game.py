@@ -6,11 +6,9 @@ from dataclasses import dataclass
 from typing import Optional, Protocol, Sequence, TextIO
 
 from bots import (
+    BOT_SPECS,
     BotDecision,
-    GreedyBot,
-    HeuristicBot,
-    MinimaxBot,
-    RandomBot,
+    build_bot,
     format_move,
     resolve_player,
 )
@@ -102,15 +100,7 @@ def build_controller(
     normalized = spec.strip().lower()
     if normalized == "human":
         return HumanCLIPlayer(input_fn=input_fn, output=output)
-    if normalized == "random":
-        return RandomBot()
-    if normalized == "greedy":
-        return GreedyBot()
-    if normalized == "heuristic":
-        return HeuristicBot()
-    if normalized == "minimax":
-        return MinimaxBot(depth=minimax_depth)
-    raise ValueError(f"Unknown player type: {spec}")
+    return build_bot(normalized, minimax_depth=minimax_depth)
 
 
 def play_game(
@@ -166,13 +156,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Play Othello Bot Arena in the terminal.")
     parser.add_argument(
         "--black",
-        choices=("human", "random", "greedy", "heuristic", "minimax"),
+        choices=("human",) + BOT_SPECS,
         default="human",
         help="controller for the black side",
     )
     parser.add_argument(
         "--white",
-        choices=("human", "random", "greedy", "heuristic", "minimax"),
+        choices=("human",) + BOT_SPECS,
         default="heuristic",
         help="controller for the white side",
     )
