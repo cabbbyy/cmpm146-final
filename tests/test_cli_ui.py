@@ -1,10 +1,10 @@
 import io
 import unittest
 
-from bots import GreedyBot
+from bots import GreedyBot, MinimaxBot
 from engine import initial_state, is_terminal, legal_moves
 from ui import parse_move_text, render_board
-from ui.game import play_game
+from ui.game import build_controller, play_game
 
 
 class CliUiTests(unittest.TestCase):
@@ -31,6 +31,12 @@ class CliUiTests(unittest.TestCase):
         transcript = output.getvalue()
         self.assertIn("Black: GreedyBot | White: GreedyBot", transcript)
         self.assertIn("Game over:", transcript)
+
+    def test_build_controller_supports_minimax_depth(self):
+        controller = build_controller("minimax", minimax_depth=2)
+
+        self.assertIsInstance(controller, MinimaxBot)
+        self.assertEqual(controller.depth, 2)
 
 
 if __name__ == "__main__":

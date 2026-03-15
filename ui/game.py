@@ -9,6 +9,7 @@ from bots import (
     BotDecision,
     GreedyBot,
     HeuristicBot,
+    MinimaxBot,
     RandomBot,
     format_move,
     resolve_player,
@@ -91,7 +92,10 @@ class HumanCLIPlayer:
 
 
 def build_controller(
-    spec: str, input_fn=input, output: TextIO = sys.stdout
+    spec: str,
+    input_fn=input,
+    output: TextIO = sys.stdout,
+    minimax_depth: int = 3,
 ) -> PlayerController:
     """Create a human or bot controller from a short CLI name."""
 
@@ -104,6 +108,8 @@ def build_controller(
         return GreedyBot()
     if normalized == "heuristic":
         return HeuristicBot()
+    if normalized == "minimax":
+        return MinimaxBot(depth=minimax_depth)
     raise ValueError(f"Unknown player type: {spec}")
 
 
@@ -160,20 +166,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Play Othello Bot Arena in the terminal.")
     parser.add_argument(
         "--black",
-        choices=("human", "random", "greedy", "heuristic"),
+        choices=("human", "random", "greedy", "heuristic", "minimax"),
         default="human",
         help="controller for the black side",
     )
     parser.add_argument(
         "--white",
-        choices=("human", "random", "greedy", "heuristic"),
+        choices=("human", "random", "greedy", "heuristic", "minimax"),
         default="heuristic",
         help="controller for the white side",
     )
+    parser.add_argument(
+        "--minimax-depth",
+        type=int,
+        default=3,
+        help="search depth used by any minimax controller",
+    )
     args = parser.parse_args(argv)
 
-    black = build_controller(args.black)
-    white = build_controller(args.white)
+    black = build_controller(args.black, minimax_depth=args.minimax_depth)
+    white = build_controller(args.white, minimax_depth=args.minimax_depth)
     play_game(black, white)
     return 0
 

@@ -9,11 +9,11 @@ Implemented so far:
 - pure 8x8 Othello rules engine
 - automated tests for move generation, flipping, passing, terminal states, and scoring
 - baseline AI agents with short move explanations
+- minimax search with alpha-beta pruning
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
 
 Planned next:
 
-- minimax with alpha-beta pruning
 - tournament and simulation tooling
 - stronger AI comparisons and analysis output
 - optional MCTS as a stretch goal
@@ -43,6 +43,7 @@ Available bots:
 - `RandomBot`: chooses a legal move uniformly at random
 - `GreedyBot`: chooses the move that flips the most discs immediately
 - `HeuristicBot`: evaluates successor states using corners, corner danger, mobility, edge control, and disc balance
+- `MinimaxBot`: searches future positions with alpha-beta pruning and a configurable depth
 
 Each bot returns both a move and a short explanation string tied to its actual policy.
 
@@ -68,7 +69,13 @@ Watch two bots play:
 python3 -m ui --black greedy --white heuristic
 ```
 
-Other supported controller names are `human`, `random`, `greedy`, and `heuristic`.
+Run against minimax at a specific depth:
+
+```bash
+python3 -m ui --black human --white minimax --minimax-depth 3
+```
+
+Other supported controller names are `human`, `random`, `greedy`, `heuristic`, and `minimax`.
 
 ## Course Framing
 
