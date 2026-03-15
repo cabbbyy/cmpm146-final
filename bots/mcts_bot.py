@@ -2,7 +2,7 @@
 
 import random
 from dataclasses import dataclass
-from math import log, sqrt
+from math import log, sqrt, tanh
 from typing import List, Optional, Tuple
 
 from bots.base import BotDecision, OthelloBot, format_move, resolve_player
@@ -89,14 +89,22 @@ class MCTSBot(OthelloBot):
         self,
         iterations: int = 200,
         exploration: float = 1.4,
+        rollout_depth_limit: int = 16,
+        rollout_epsilon: float = 0.15,
         rng: Optional[random.Random] = None,
     ):
         if iterations < 1:
             raise ValueError("MCTS iterations must be at least 1.")
         if exploration <= 0:
             raise ValueError("MCTS exploration constant must be positive.")
+        if rollout_depth_limit < 1:
+            raise ValueError("MCTS rollout depth limit must be at least 1.")
+        if not 0.0 <= rollout_epsilon <= 1.0:
+            raise ValueError("MCTS rollout epsilon must be between 0 and 1.")
         self.iterations = iterations
         self.exploration = exploration
+        self.rollout_depth_limit = rollout_depth_limit
+        self.rollout_epsilon = rollout_epsilon
         self._rng = rng or random.Random()
         self.name = f"MCTSBot(n={iterations})"
 
@@ -147,10 +155,12 @@ class MCTSBot(OthelloBot):
                 node = self._select_child(node)
 
             if node.untried_actions and not is_terminal(node.state):
-                node = node.add_child(self._rng.choice(node.untried_actions))
+                node = node.add_child(
+                    self._select_expansion_action(node.state, node.untried_actions)
+                )
 
-            winner_color = self._rollout(node.state)
-            self._backpropagate(node, winner_color)
+            rollout_value = self._rollout(node.state, player)
+            self._backpropagate(node, rollout_value, player)
 
         best_child = self._best_root_child(root)
         return MCTSResult(
@@ -172,36 +182,73 @@ class MCTSBot(OthelloBot):
                 best_child = child
         return best_child
 
-    def _rollout(self, state: GameState) -> Optional[str]:
+    def _rollout(self, state: GameState, root_player: str) -> float:
         rollout_state = state
-        while not is_terminal(rollout_state):
+        depth = 0
+        while not is_terminal(rollout_state) and depth < self.rollout_depth_limit:
             action = self._sample_rollout_action(rollout_state)
             rollout_state = apply_move(rollout_state, action)
-        return winner(rollout_state)
+            depth += 1
+        return self._evaluate_rollout_state(rollout_state, root_player)
 
     def _sample_rollout_action(self, state: GameState) -> Move:
         actions = legal_actions(state)
+        if len(actions) == 1:
+            return actions[0]
         corner_actions = [action for action in actions if action in _CORNERS]
         if corner_actions:
             return self._rng.choice(corner_actions)
-        return self._rng.choice(actions)
+        if self._rng.random() < self.rollout_epsilon:
+            return self._rng.choice(actions)
+        return self._select_expansion_action(state, actions)
 
-    def _backpropagate(self, node: _MCTSNode, winner_color: Optional[str]) -> None:
+    def _select_expansion_action(
+        self, state: GameState, actions: List[Move]
+    ) -> Move:
+        best_action = None
+        best_score = None
+        player = state.current_player
+        for action in actions:
+            successor = apply_move(state, action)
+            score = evaluate_state(successor, player).total
+            if best_action is None or score > best_score:
+                best_action = action
+                best_score = score
+            elif score == best_score and self._move_order_key(action) < self._move_order_key(best_action):
+                best_action = action
+        return best_action
+
+    def _evaluate_rollout_state(self, state: GameState, root_player: str) -> float:
+        if is_terminal(state):
+            winning_color = winner(state)
+            if winning_color is None:
+                return 0.0
+            return 1.0 if winning_color == root_player else -1.0
+        heuristic_total = evaluate_state(state, root_player).total
+        return tanh(heuristic_total / 32.0)
+
+    def _backpropagate(
+        self, node: _MCTSNode, rollout_value: float, root_player: str
+    ) -> None:
         current = node
         while current is not None:
             current.visits += 1
             current.total_value += self._reward_for_player(
                 current.player_just_moved,
-                winner_color,
+                rollout_value,
+                root_player,
             )
             current = current.parent
 
     def _reward_for_player(
-        self, player_just_moved: Optional[str], winner_color: Optional[str]
+        self,
+        player_just_moved: Optional[str],
+        rollout_value: float,
+        root_player: str,
     ) -> float:
-        if player_just_moved not in (BLACK, WHITE) or winner_color is None:
+        if player_just_moved not in (BLACK, WHITE):
             return 0.0
-        return 1.0 if winner_color == player_just_moved else -1.0
+        return rollout_value if player_just_moved == root_player else -rollout_value
 
     def _best_root_child(self, root: _MCTSNode) -> _MCTSNode:
         best_child = None
@@ -234,7 +281,8 @@ class MCTSBot(OthelloBot):
         return (
             f"Chose {format_move(result.move)} after {result.rollouts} rollouts; "
             f"the move received {result.visits} visits with estimated value "
-            f"{result.expected_value:+.2f}, and {reason}."
+            f"{result.expected_value:+.2f}. Rollouts were guided by heuristic "
+            f"playouts, and {reason}."
         )
 
     def _move_order_key(self, move: Move) -> Tuple[int, int, int]:
