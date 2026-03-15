@@ -42,6 +42,7 @@ class ExperimentModeTests(unittest.TestCase):
             json_path = temp_path / "experiment.json"
             standings_path = temp_path / "standings.csv"
             matches_path = temp_path / "matches.csv"
+            summary_path = temp_path / "summary.md"
             stdout = io.StringIO()
 
             with redirect_stdout(stdout):
@@ -63,6 +64,8 @@ class ExperimentModeTests(unittest.TestCase):
                         str(standings_path),
                         "--matches-csv",
                         str(matches_path),
+                        "--summary-md",
+                        str(summary_path),
                     ]
                 )
 
@@ -75,12 +78,16 @@ class ExperimentModeTests(unittest.TestCase):
 
             standings_text = standings_path.read_text(encoding="utf-8")
             matches_text = matches_path.read_text(encoding="utf-8")
+            summary_text = summary_path.read_text(encoding="utf-8")
             self.assertIn("label,games,wins,losses,draws", standings_text)
             self.assertIn("black_label,white_label,black_score,white_score", matches_text)
+            self.assertIn("# Othello Bot Arena Summary", summary_text)
+            self.assertIn("Avg Margin", summary_text)
 
             output = stdout.getvalue()
             self.assertIn("Othello Bot Arena Repeated Evaluation", output)
             self.assertIn("Board size: 6x6", output)
+            self.assertIn("Wrote markdown summary", output)
             self.assertIn("Wrote experiment JSON export", output)
 
 

@@ -13,6 +13,7 @@ class BotInsight:
 
     label: str
     win_rate: float
+    average_margin: float
     average_rank: Optional[float]
     first_place_finishes: Optional[int]
 
@@ -32,6 +33,7 @@ class ExportAnalysis:
     """Human-readable insights derived from an exported JSON file."""
 
     export_kind: str
+    board_size: int
     matches_played: int
     first_player_note: str
     rankings: Tuple[BotInsight, ...]
@@ -53,6 +55,7 @@ def analyze_export(payload: Dict[str, object]) -> ExportAnalysis:
     matchup_insights = _build_matchup_insights(aggregate["matchups"])
     return ExportAnalysis(
         export_kind=export_kind,
+        board_size=payload.get("board_size", aggregate.get("board_size", 8)),
         matches_played=summary["matches_played"],
         first_player_note=_build_first_player_note(summary),
         rankings=rankings,
@@ -66,6 +69,7 @@ def render_analysis_report(analysis: ExportAnalysis) -> str:
     lines = [
         "Othello Bot Arena Export Analysis",
         f"Source type: {analysis.export_kind}",
+        f"Board size: {analysis.board_size}x{analysis.board_size}",
         f"Matches analyzed: {analysis.matches_played}",
         analysis.first_player_note,
         "",
@@ -79,7 +83,8 @@ def render_analysis_report(analysis: ExportAnalysis) -> str:
         if insight.first_place_finishes is not None:
             suffix += f" | firsts {insight.first_place_finishes}"
         lines.append(
-            f"{index}. {insight.label} | win rate {insight.win_rate:.2%}{suffix}"
+            f"{index}. {insight.label} | win rate {insight.win_rate:.2%} | "
+            f"avg margin {insight.average_margin:+.2f}{suffix}"
         )
 
     lines.append("")
@@ -92,6 +97,55 @@ def render_analysis_report(analysis: ExportAnalysis) -> str:
     return "\n".join(lines)
 
 
+def render_analysis_markdown(analysis: ExportAnalysis) -> str:
+    """Render a slide-ready markdown summary from export analysis."""
+
+    lines = [
+        "# Othello Bot Arena Summary",
+        "",
+        f"- Source: {analysis.export_kind}",
+        f"- Board size: {analysis.board_size}x{analysis.board_size}",
+        f"- Matches analyzed: {analysis.matches_played}",
+        f"- First-player effect: {analysis.first_player_note}",
+        "",
+        "## Rankings",
+        "",
+        "| Rank | Bot | Win Rate | Avg Margin | Avg Rank | Firsts |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for index, insight in enumerate(analysis.rankings, start=1):
+        average_rank = (
+            f"{insight.average_rank:.2f}"
+            if insight.average_rank is not None
+            else "-"
+        )
+        firsts = (
+            str(insight.first_place_finishes)
+            if insight.first_place_finishes is not None
+            else "-"
+        )
+        lines.append(
+            f"| {index} | {insight.label} | {insight.win_rate:.2%} | "
+            f"{insight.average_margin:+.2f} | {average_rank} | {firsts} |"
+        )
+
+    lines.extend(["", "## Matchup Notes", ""])
+    for insight in analysis.matchup_insights:
+        lines.append(
+            f"- **{insight.pair_label}**: record {insight.record}, "
+            f"avg margin {insight.average_margin_for_left:+.2f}. {insight.note}."
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_analysis_markdown(analysis: ExportAnalysis, path: str) -> None:
+    """Write a slide-ready markdown summary to disk."""
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(render_analysis_markdown(analysis), encoding="utf-8")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI entry point for export analysis."""
 
@@ -99,9 +153,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         description="Analyze exported Othello Bot Arena tournament JSON."
     )
     parser.add_argument("input_json", help="path to a tournament or experiment JSON export")
+    parser.add_argument(
+        "--markdown-out",
+        help="optional path to write a markdown summary report",
+    )
     args = parser.parse_args(argv)
 
     analysis = analyze_export(load_export(args.input_json))
+    if args.markdown_out:
+        write_analysis_markdown(analysis, args.markdown_out)
+        print(f"Wrote analysis markdown to {args.markdown_out}")
+        return 0
     print(render_analysis_report(analysis))
     return 0
 
@@ -128,6 +190,7 @@ def _build_rankings(
             BotInsight(
                 label=label,
                 win_rate=(row["wins"] / games) if games else 0.0,
+                average_margin=row["average_disc_diff"],
                 average_rank=summary.get("average_rank"),
                 first_place_finishes=summary.get("first_place_finishes"),
             )

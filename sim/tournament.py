@@ -8,6 +8,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 from bots import BOT_SPECS, build_bot
 from engine import BLACK, BOARD_SIZE, SUPPORTED_BOARD_SIZES, WHITE, score, winner
+from sim.analysis import analyze_export, write_analysis_markdown
 from sim.export import write_matches_csv, write_standings_csv, write_tournament_json
 from sim.presets import PRESET_ROSTERS, resolve_roster
 from ui.game import play_game
@@ -419,6 +420,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="write per-match results to a CSV file; repeated mode writes aggregate matches",
     )
     parser.add_argument(
+        "--summary-md",
+        help="write a concise markdown summary report for the tournament or experiment",
+    )
+    parser.add_argument(
         "--board-size",
         type=int,
         choices=SUPPORTED_BOARD_SIZES,
@@ -446,6 +451,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             board_size=args.board_size,
         )
         print(render_tournament_report(result))
+        if args.summary_md:
+            from sim.export import tournament_to_dict
+
+            analysis = analyze_export(tournament_to_dict(result))
+            write_analysis_markdown(analysis, args.summary_md)
+            print(f"Wrote markdown summary to {args.summary_md}")
         if args.json_out:
             write_tournament_json(result, args.json_out)
             print(f"Wrote JSON export to {args.json_out}")
@@ -466,6 +477,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         board_size=args.board_size,
     )
     print(render_experiment_report(result))
+    if args.summary_md:
+        from sim.experiment import experiment_to_dict
+
+        analysis = analyze_export(experiment_to_dict(result))
+        write_analysis_markdown(analysis, args.summary_md)
+        print(f"Wrote markdown summary to {args.summary_md}")
     if args.json_out:
         write_experiment_json(result, args.json_out)
         print(f"Wrote experiment JSON export to {args.json_out}")

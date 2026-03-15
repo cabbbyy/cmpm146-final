@@ -5,7 +5,12 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from sim.analysis import analyze_export, main as analysis_main, render_analysis_report
+from sim.analysis import (
+    analyze_export,
+    main as analysis_main,
+    render_analysis_markdown,
+    render_analysis_report,
+)
 from sim.experiment import experiment_to_dict, run_experiment
 from sim.export import tournament_to_dict
 from sim.tournament import build_entries, run_round_robin
@@ -20,6 +25,7 @@ class SimulationAnalysisTests(unittest.TestCase):
         analysis = analyze_export(payload)
 
         self.assertEqual(analysis.export_kind, "tournament")
+        self.assertEqual(analysis.board_size, 8)
         self.assertEqual(analysis.matches_played, 1)
         self.assertEqual(len(analysis.rankings), 2)
         self.assertEqual(analysis.rankings[0].label, "heuristic")
@@ -35,11 +41,14 @@ class SimulationAnalysisTests(unittest.TestCase):
 
         analysis = analyze_export(payload)
         report = render_analysis_report(analysis)
+        markdown = render_analysis_markdown(analysis)
 
         self.assertEqual(analysis.export_kind, "experiment")
         self.assertEqual(analysis.rankings[0].label, "heuristic")
         self.assertIn("avg rank 1.00", report)
         self.assertIn("firsts 2", report)
+        self.assertIn("Avg Margin", markdown)
+        self.assertIn("First-player effect", markdown)
 
     def test_analysis_cli_reads_json_and_prints_report(self):
         payload = experiment_to_dict(
@@ -62,6 +71,31 @@ class SimulationAnalysisTests(unittest.TestCase):
             output = stdout.getvalue()
             self.assertIn("Othello Bot Arena Export Analysis", output)
             self.assertIn("Source type: experiment", output)
+
+    def test_analysis_cli_can_write_markdown_summary(self):
+        payload = experiment_to_dict(
+            run_experiment(
+                build_entries(["heuristic", "minimax"], minimax_depth=2),
+                repetitions=2,
+                games_per_pair=1,
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "experiment.json"
+            markdown_path = Path(temp_dir) / "summary.md"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            stdout = io.StringIO()
+
+            with redirect_stdout(stdout):
+                exit_code = analysis_main([str(path), "--markdown-out", str(markdown_path)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(markdown_path.exists())
+            markdown = markdown_path.read_text(encoding="utf-8")
+            self.assertIn("# Othello Bot Arena Summary", markdown)
+            self.assertIn("## Rankings", markdown)
+            self.assertIn("Avg Margin", markdown)
 
 
 if __name__ == "__main__":
