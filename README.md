@@ -11,11 +11,12 @@ Implemented so far:
 - baseline AI agents with short move explanations
 - minimax search with alpha-beta pruning
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
+- round-robin tournament simulation with summary statistics
 
 Planned next:
 
-- tournament and simulation tooling
-- stronger AI comparisons and analysis output
+- richer tournament exports and analysis output
+- stronger evaluation experiments and comparisons
 - optional MCTS as a stretch goal
 
 ## Repository Layout
@@ -23,7 +24,7 @@ Planned next:
 - `engine/`: pure game rules and state transitions
 - `bots/`: AI agents, shared bot interfaces, and evaluation helpers
 - `ui/`: terminal-based playable prototype
-- `sim/`: future bot-vs-bot evaluation tools
+- `sim/`: bot-vs-bot tournament and reporting tools
 - `tests/`: automated correctness tests
 
 ## Engine Design
@@ -76,6 +77,28 @@ python3 -m ui --black human --white minimax --minimax-depth 3
 ```
 
 Other supported controller names are `human`, `random`, `greedy`, `heuristic`, and `minimax`.
+
+## Run Tournaments
+
+Run a small round-robin tournament:
+
+```bash
+python3 -m sim random greedy heuristic --games-per-pair 2
+```
+
+Include minimax at a chosen depth:
+
+```bash
+python3 -m sim greedy heuristic minimax --games-per-pair 2 --minimax-depth 3
+```
+
+The simulator prints:
+
+- wins, losses, and draws
+- average disc differential
+- average final score
+- first-player results across the tournament
+- per-match scorelines
 
 ## Course Framing
 
