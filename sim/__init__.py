@@ -8,6 +8,7 @@ from sim.export import (
     write_standings_csv,
     write_tournament_json,
 )
+from sim.presets import PRESET_ROSTERS, resolve_roster
 from sim.tournament import (
     BotEntry,
     BotStats,
@@ -28,11 +29,13 @@ __all__ = [
     "BotStats",
     "MatchResult",
     "MatchupStats",
+    "PRESET_ROSTERS",
     "TournamentResult",
     "build_entries",
     "main",
     "matches_rows",
     "render_tournament_report",
+    "resolve_roster",
     "run_match",
     "run_round_robin",
     "standings_rows",
