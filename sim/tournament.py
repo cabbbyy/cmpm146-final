@@ -1,7 +1,6 @@
 """Round-robin simulation tools for Othello Bot Arena."""
 
 import argparse
-import io
 from dataclasses import dataclass
 from itertools import combinations
 from typing import Dict, Optional, Sequence, Tuple
@@ -20,8 +19,8 @@ class BotEntry:
 
     label: str
     spec: str
-    minimax_depth: int = 3
-    mcts_iterations: int = 200
+    minimax_depth: int = 1
+    mcts_iterations: int = 32
 
     def create(self):
         """Build a fresh bot instance for a single game."""
@@ -110,11 +109,10 @@ def run_match(
 ) -> MatchResult:
     """Run one bot-vs-bot match."""
 
-    transcript = io.StringIO()
     game = play_game(
         black.create(),
         white.create(),
-        output=transcript,
+        output=None,
         board_size=board_size,
     )
     counts = score(game.final_state)
@@ -330,8 +328,8 @@ def summarize_matchups(matches: Sequence[MatchResult]) -> Tuple[MatchupStats, ..
 
 def build_entries(
     specs: Sequence[str],
-    minimax_depth: int = 3,
-    mcts_iterations: int = 200,
+    minimax_depth: int = 1,
+    mcts_iterations: int = 32,
 ) -> Tuple[BotEntry, ...]:
     """Create tournament entries from short bot names."""
 
@@ -392,13 +390,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument(
         "--minimax-depth",
         type=int,
-        default=3,
+        default=1,
         help="search depth used by any minimax entry",
     )
     parser.add_argument(
         "--mcts-iterations",
         type=int,
-        default=200,
+        default=32,
         help="rollout count used by any MCTS entry",
     )
     parser.add_argument(

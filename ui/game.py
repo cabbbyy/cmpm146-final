@@ -9,6 +9,7 @@ from typing import Callable, Optional, Protocol, Sequence, TextIO
 from bots import (
     BOT_SPECS,
     BotDecision,
+    OthelloBot,
     build_bot,
     format_move,
     render_decision_details,
@@ -107,8 +108,8 @@ def build_controller(
     spec: str,
     input_fn=input,
     output: TextIO = sys.stdout,
-    minimax_depth: int = 3,
-    mcts_iterations: int = 200,
+    minimax_depth: int = 2,
+    mcts_iterations: int = 64,
 ) -> PlayerController:
     """Create a human or bot controller from a short CLI name."""
 
@@ -125,7 +126,7 @@ def build_controller(
 def play_game(
     black: PlayerController,
     white: PlayerController,
-    output: TextIO = sys.stdout,
+    output: Optional[TextIO] = sys.stdout,
     initial: Optional[GameState] = None,
     presentation: Optional[PresentationOptions] = None,
     sleep_fn: Callable[[float], None] = time.sleep,
@@ -137,37 +138,42 @@ def play_game(
     options = PresentationOptions() if presentation is None else presentation
     state = initial_state(board_size=board_size) if initial is None else initial
     turn_count = 0
-    if options.demo:
-        output.write("Othello Bot Arena Demo\n")
-        output.write("======================\n")
-    output.write(f"Black: {black.name} | White: {white.name}\n")
+    if output is not None:
+        if options.demo:
+            output.write("Othello Bot Arena Demo\n")
+            output.write("======================\n")
+        output.write(f"Black: {black.name} | White: {white.name}\n")
 
     while not is_terminal(state):
         legal = legal_moves(state)
         controller = black if state.current_player == BLACK else white
-        output.write("\n")
-        if options.demo:
-            output.write(_render_demo_turn_header(state, controller.name, turn_count + 1))
-            output.write(render_board(state, legal, demo=True) + "\n")
-            output.write("Legend: B=Black  W=White  *=legal move\n")
-        else:
-            output.write(render_status(state) + "\n")
-            output.write(render_board(state, legal) + "\n")
-        if legal:
-            output.write(f"Legal moves: {legal_moves_text(legal)}\n")
-        else:
-            output.write("Legal moves: pass\n")
-        decision = controller.decide(state, state.current_player)
+        if output is not None:
+            output.write("\n")
+            if options.demo:
+                output.write(
+                    _render_demo_turn_header(state, controller.name, turn_count + 1)
+                )
+                output.write(render_board(state, legal, demo=True) + "\n")
+                output.write("Legend: B=Black  W=White  *=legal move\n")
+            else:
+                output.write(render_status(state) + "\n")
+                output.write(render_board(state, legal) + "\n")
+            if legal:
+                output.write(f"Legal moves: {legal_moves_text(legal)}\n")
+            else:
+                output.write("Legal moves: pass\n")
+        decision = _choose_action(controller, state, output, replay)
         _validate_decision(state, decision.move)
 
-        if options.demo:
-            output.write(f"Chosen move: {format_move(decision.move)}\n")
-            output.write(f"Explanation: {decision.explanation}\n")
-        else:
-            output.write(f"{player_name(state.current_player)} ({controller.name}): ")
-            output.write(decision.explanation + "\n")
-        if options.explain_verbose and decision.details is not None:
-            output.write(render_decision_details(decision.details) + "\n")
+        if output is not None:
+            if options.demo:
+                output.write(f"Chosen move: {format_move(decision.move)}\n")
+                output.write(f"Explanation: {decision.explanation}\n")
+            else:
+                output.write(f"{player_name(state.current_player)} ({controller.name}): ")
+                output.write(decision.explanation + "\n")
+            if options.explain_verbose and decision.details is not None:
+                output.write(render_decision_details(decision.details) + "\n")
 
         next_state = apply_move(state, decision.move)
         if replay is not None:
@@ -188,18 +194,21 @@ def play_game(
     winning_color = winner(state)
     if replay is not None:
         replay.finish(state, turn_count)
-    output.write("\nFinal board\n")
-    output.write(render_status(state) + "\n")
-    output.write(render_board(state, demo=options.demo) + "\n")
-    if options.demo:
-        output.write(_render_demo_summary(state, black.name, white.name, turn_count) + "\n")
-    elif winning_color is None:
-        output.write(f"Game over: draw {counts[BLACK]}-{counts[WHITE]}.\n")
-    else:
-        output.write(
-            f"Game over: {player_name(winning_color)} wins "
-            f"{counts[BLACK]}-{counts[WHITE]}.\n"
-        )
+    if output is not None:
+        output.write("\nFinal board\n")
+        output.write(render_status(state) + "\n")
+        output.write(render_board(state, demo=options.demo) + "\n")
+        if options.demo:
+            output.write(
+                _render_demo_summary(state, black.name, white.name, turn_count) + "\n"
+            )
+        elif winning_color is None:
+            output.write(f"Game over: draw {counts[BLACK]}-{counts[WHITE]}.\n")
+        else:
+            output.write(
+                f"Game over: {player_name(winning_color)} wins "
+                f"{counts[BLACK]}-{counts[WHITE]}.\n"
+            )
     return GameResult(final_state=state, turns=turn_count)
 
 
@@ -222,13 +231,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument(
         "--minimax-depth",
         type=int,
-        default=3,
+        default=2,
         help="search depth used by any minimax controller",
     )
     parser.add_argument(
         "--mcts-iterations",
         type=int,
-        default=200,
+        default=64,
         help="rollout count used by any MCTS controller",
     )
     parser.add_argument(
@@ -301,6 +310,20 @@ def _validate_decision(state: GameState, move: Move) -> None:
 
 def _is_human_controller(controller: PlayerController) -> bool:
     return isinstance(controller, HumanCLIPlayer)
+
+
+def _choose_action(
+    controller: PlayerController,
+    state: GameState,
+    output: Optional[TextIO],
+    replay: Optional[ReplayRecorder],
+) -> BotDecision:
+    if output is None and replay is None and isinstance(controller, OthelloBot):
+        return BotDecision(
+            move=controller.choose_move(state, state.current_player),
+            explanation="",
+        )
+    return controller.decide(state, state.current_player)
 
 
 def _render_demo_turn_header(

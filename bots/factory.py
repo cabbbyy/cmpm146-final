@@ -12,8 +12,8 @@ BOT_SPECS = ("random", "greedy", "heuristic", "minimax", "mcts")
 
 def build_bot(
     spec: str,
-    minimax_depth: int = 3,
-    mcts_iterations: int = 200,
+    minimax_depth: int = 2,
+    mcts_iterations: int = 64,
 ) -> OthelloBot:
     """Create a bot instance from a short CLI-friendly name."""
 
