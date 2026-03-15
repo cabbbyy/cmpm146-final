@@ -14,10 +14,10 @@ Implemented so far:
 - round-robin tournament simulation with summary statistics
 - JSON and CSV export support for tournament results
 - repeated evaluation mode with preset bot rosters and consistency summaries
+- lightweight analysis helpers for exported tournament and experiment JSON
 
 Planned next:
 
-- lightweight analysis helpers over exported experiment data
 - optional MCTS as a stretch goal
 
 ## Repository Layout
@@ -127,6 +127,27 @@ python3 -m sim greedy heuristic minimax \
 ```
 
 In repeated mode, `--json-out` writes the full experiment summary, while the CSV exports contain aggregate standings and aggregate per-match data across all repetitions.
+
+## Analyze Exported Results
+
+Analyze a tournament JSON export:
+
+```bash
+python3 -m sim.analysis results/tournament.json
+```
+
+Analyze a repeated experiment export:
+
+```bash
+python3 -m sim.analysis results/experiment.json
+```
+
+The analysis report summarizes:
+
+- win-rate rankings
+- average rank and first-place finishes when repeated-mode data is available
+- close or split matchups
+- possible first-player effects
 
 ## Course Framing
 
