@@ -16,7 +16,7 @@ def player_name(color: str) -> str:
     raise ValueError("Player must be 'B' or 'W'.")
 
 
-def parse_move_text(text: str) -> Move:
+def parse_move_text(text: str, board_size: int = 8) -> Move:
     """Parse board notation such as ``d3`` or the literal ``pass``."""
 
     cleaned = text.strip().lower()
@@ -29,13 +29,14 @@ def parse_move_text(text: str) -> Move:
 
     column = cleaned[0]
     row_text = cleaned[1:]
-    if not ("a" <= column <= "h") or not row_text.isdigit():
+    max_column = chr(ord("a") + board_size - 1)
+    if not ("a" <= column <= max_column) or not row_text.isdigit():
         raise ValueError("Move input must look like d3 or pass.")
 
     row = int(row_text) - 1
     col = ord(column) - ord("a")
-    if not (0 <= row < 8):
-        raise ValueError("Move row must be between 1 and 8.")
+    if not (0 <= row < board_size):
+        raise ValueError(f"Move row must be between 1 and {board_size}.")
     return (row, col)
 
 
@@ -45,21 +46,28 @@ def legal_moves_text(moves: Iterable[Position]) -> str:
     return ", ".join(format_move(move) for move in moves)
 
 
-def render_board(state: GameState, legal_moves: Iterable[Position] = ()) -> str:
+def render_board(
+    state: GameState,
+    legal_moves: Iterable[Position] = (),
+    demo: bool = False,
+) -> str:
     """Render the board, marking legal moves with ``*``."""
 
     legal_move_set = set(legal_moves)
-    lines = ["  a b c d e f g h"]
-    for row_index, row in enumerate(state.board):
-        cells = []
-        for col_index, disc in enumerate(row):
-            position = (row_index, col_index)
-            if disc == EMPTY and position in legal_move_set:
-                cells.append("*")
-            else:
-                cells.append(disc)
-        lines.append(f"{row_index + 1} " + " ".join(cells))
-    return "\n".join(lines)
+    size = len(state.board)
+    columns = [chr(ord("a") + index) for index in range(size)]
+    rows = [
+        [
+            "*"
+            if disc == EMPTY and (row_index, col_index) in legal_move_set
+            else disc
+            for col_index, disc in enumerate(row)
+        ]
+        for row_index, row in enumerate(state.board)
+    ]
+    if demo:
+        return _render_demo_board(columns, rows)
+    return _render_standard_board(columns, rows)
 
 
 def render_status(state: GameState) -> str:
@@ -70,3 +78,20 @@ def render_status(state: GameState) -> str:
         f"{player_name(state.current_player)} to move | "
         f"Black: {counts[BLACK]}  White: {counts[WHITE]}"
     )
+
+
+def _render_standard_board(columns, rows) -> str:
+    lines = ["  " + " ".join(columns)]
+    for row_index, row in enumerate(rows):
+        lines.append(f"{row_index + 1} " + " ".join(row))
+    return "\n".join(lines)
+
+
+def _render_demo_board(columns, rows) -> str:
+    header = "    " + "   ".join(columns)
+    border = "  +" + "---+" * len(columns)
+    lines = [header, border]
+    for row_index, row in enumerate(rows, start=1):
+        lines.append(f"{row_index:>2}| " + " | ".join(row) + " |")
+        lines.append(border)
+    return "\n".join(lines)

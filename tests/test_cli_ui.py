@@ -4,7 +4,7 @@ import unittest
 from bots import GreedyBot, MCTSBot, MinimaxBot
 from engine import initial_state, is_terminal, legal_moves
 from ui import parse_move_text, render_board
-from ui.game import build_controller, play_game
+from ui.game import PresentationOptions, build_controller, play_game
 
 
 class CliUiTests(unittest.TestCase):
@@ -21,6 +21,14 @@ class CliUiTests(unittest.TestCase):
         self.assertIn("3 . . . * . . . .", rendered)
         self.assertIn("4 . . * W B . . .", rendered)
 
+    def test_render_board_demo_mode_draws_grid(self):
+        state = initial_state()
+
+        rendered = render_board(state, legal_moves(state), demo=True)
+
+        self.assertIn("+---+---+---+---+---+---+---+---+", rendered)
+        self.assertIn(" 4| . | . | * | W | B | . | . | . |", rendered)
+
     def test_play_game_finishes_in_bot_vs_bot_mode(self):
         output = io.StringIO()
 
@@ -31,6 +39,30 @@ class CliUiTests(unittest.TestCase):
         transcript = output.getvalue()
         self.assertIn("Black: GreedyBot | White: GreedyBot", transcript)
         self.assertIn("Game over:", transcript)
+
+    def test_play_game_demo_mode_shows_labeled_turns_and_summary(self):
+        output = io.StringIO()
+        delays = []
+
+        result = play_game(
+            GreedyBot(),
+            GreedyBot(),
+            output=output,
+            presentation=PresentationOptions(demo=True, demo_delay=0.05),
+            sleep_fn=delays.append,
+        )
+
+        self.assertTrue(is_terminal(result.final_state))
+        transcript = output.getvalue()
+        self.assertIn("Othello Bot Arena Demo", transcript)
+        self.assertIn("=== Demo Turn 1 ===", transcript)
+        self.assertIn("Current controller: GreedyBot", transcript)
+        self.assertIn("Chosen move:", transcript)
+        self.assertIn("Explanation:", transcript)
+        self.assertIn("=== Final Summary ===", transcript)
+        self.assertIn("Matchup summary:", transcript)
+        self.assertGreater(len(delays), 0)
+        self.assertTrue(all(delay == 0.05 for delay in delays))
 
     def test_build_controller_supports_minimax_depth(self):
         controller = build_controller("minimax", minimax_depth=2)
