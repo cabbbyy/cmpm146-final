@@ -8,6 +8,7 @@ from typing import Dict, Optional, Sequence, Tuple
 
 from bots import BOT_SPECS, build_bot
 from engine import BLACK, WHITE, score, winner
+from sim.export import write_matches_csv, write_standings_csv, write_tournament_json
 from ui.game import play_game
 
 
@@ -357,6 +358,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default=3,
         help="search depth used by any minimax entry",
     )
+    parser.add_argument(
+        "--json-out",
+        help="write the full tournament result to a JSON file",
+    )
+    parser.add_argument(
+        "--standings-csv",
+        help="write aggregated standings to a CSV file",
+    )
+    parser.add_argument(
+        "--matches-csv",
+        help="write per-match results to a CSV file",
+    )
     args = parser.parse_args(argv)
 
     result = run_round_robin(
@@ -364,4 +377,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         games_per_pair=args.games_per_pair,
     )
     print(render_tournament_report(result))
+    if args.json_out:
+        write_tournament_json(result, args.json_out)
+        print(f"Wrote JSON export to {args.json_out}")
+    if args.standings_csv:
+        write_standings_csv(result, args.standings_csv)
+        print(f"Wrote standings CSV to {args.standings_csv}")
+    if args.matches_csv:
+        write_matches_csv(result, args.matches_csv)
+        print(f"Wrote matches CSV to {args.matches_csv}")
     return 0
