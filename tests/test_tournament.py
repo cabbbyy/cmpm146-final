@@ -13,11 +13,16 @@ from sim import (
 
 
 class TournamentTests(unittest.TestCase):
-    def test_build_entries_formats_minimax_and_rejects_duplicates(self):
-        entries = build_entries(["greedy", "minimax"], minimax_depth=2)
+    def test_build_entries_formats_search_bot_labels_and_rejects_duplicates(self):
+        entries = build_entries(
+            ["greedy", "minimax", "mcts"],
+            minimax_depth=2,
+            mcts_iterations=48,
+        )
 
         self.assertEqual(entries[0].label, "greedy")
         self.assertEqual(entries[1].label, "minimax(d=2)")
+        self.assertEqual(entries[2].label, "mcts(n=48)")
         with self.assertRaises(ValueError):
             build_entries(["greedy", "greedy"])
 

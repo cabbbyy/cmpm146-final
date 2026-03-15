@@ -12,6 +12,7 @@ from sim.tournament import main as sim_main
 class ExperimentModeTests(unittest.TestCase):
     def test_resolve_roster_supports_presets_and_rejects_mixed_input(self):
         self.assertEqual(resolve_roster((), preset="baseline"), PRESET_ROSTERS["baseline"])
+        self.assertEqual(resolve_roster((), preset="stretch"), PRESET_ROSTERS["stretch"])
         self.assertEqual(resolve_roster(("greedy", "heuristic")), ("greedy", "heuristic"))
 
         with self.assertRaises(ValueError):

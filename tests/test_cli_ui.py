@@ -1,7 +1,7 @@
 import io
 import unittest
 
-from bots import GreedyBot, MinimaxBot
+from bots import GreedyBot, MCTSBot, MinimaxBot
 from engine import initial_state, is_terminal, legal_moves
 from ui import parse_move_text, render_board
 from ui.game import build_controller, play_game
@@ -37,6 +37,12 @@ class CliUiTests(unittest.TestCase):
 
         self.assertIsInstance(controller, MinimaxBot)
         self.assertEqual(controller.depth, 2)
+
+    def test_build_controller_supports_mcts_iterations(self):
+        controller = build_controller("mcts", mcts_iterations=32)
+
+        self.assertIsInstance(controller, MCTSBot)
+        self.assertEqual(controller.iterations, 32)
 
 
 if __name__ == "__main__":
