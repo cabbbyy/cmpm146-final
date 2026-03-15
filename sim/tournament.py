@@ -9,6 +9,7 @@ from typing import Dict, Optional, Sequence, Tuple
 from bots import BOT_SPECS, build_bot
 from engine import BLACK, WHITE, score, winner
 from sim.export import write_matches_csv, write_standings_csv, write_tournament_json
+from sim.presets import PRESET_ROSTERS, resolve_roster
 from ui.game import play_game
 
 
@@ -342,9 +343,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     )
     parser.add_argument(
         "bots",
-        nargs="+",
-        choices=BOT_SPECS,
-        help="bot roster for the tournament",
+        nargs="*",
+        help="explicit bot roster for the tournament or experiment",
+    )
+    parser.add_argument(
+        "--preset",
+        choices=tuple(sorted(PRESET_ROSTERS)),
+        help="use a named bot roster preset instead of listing bots explicitly",
     )
     parser.add_argument(
         "--games-per-pair",
@@ -359,31 +364,62 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="search depth used by any minimax entry",
     )
     parser.add_argument(
+        "--repetitions",
+        type=int,
+        default=1,
+        help="number of times to repeat the full round-robin evaluation",
+    )
+    parser.add_argument(
         "--json-out",
-        help="write the full tournament result to a JSON file",
+        help="write the tournament or repeated evaluation result to a JSON file",
     )
     parser.add_argument(
         "--standings-csv",
-        help="write aggregated standings to a CSV file",
+        help="write standings to a CSV file; repeated mode writes aggregate standings",
     )
     parser.add_argument(
         "--matches-csv",
-        help="write per-match results to a CSV file",
+        help="write per-match results to a CSV file; repeated mode writes aggregate matches",
     )
     args = parser.parse_args(argv)
 
-    result = run_round_robin(
-        build_entries(args.bots, minimax_depth=args.minimax_depth),
+    if args.repetitions < 1:
+        parser.error("--repetitions must be at least 1.")
+    try:
+        roster = resolve_roster(args.bots, preset=args.preset)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    entries = build_entries(roster, minimax_depth=args.minimax_depth)
+    if args.repetitions == 1:
+        result = run_round_robin(entries, games_per_pair=args.games_per_pair)
+        print(render_tournament_report(result))
+        if args.json_out:
+            write_tournament_json(result, args.json_out)
+            print(f"Wrote JSON export to {args.json_out}")
+        if args.standings_csv:
+            write_standings_csv(result, args.standings_csv)
+            print(f"Wrote standings CSV to {args.standings_csv}")
+        if args.matches_csv:
+            write_matches_csv(result, args.matches_csv)
+            print(f"Wrote matches CSV to {args.matches_csv}")
+        return 0
+
+    from sim.experiment import render_experiment_report, run_experiment, write_experiment_json
+
+    result = run_experiment(
+        entries,
+        repetitions=args.repetitions,
         games_per_pair=args.games_per_pair,
     )
-    print(render_tournament_report(result))
+    print(render_experiment_report(result))
     if args.json_out:
-        write_tournament_json(result, args.json_out)
-        print(f"Wrote JSON export to {args.json_out}")
+        write_experiment_json(result, args.json_out)
+        print(f"Wrote experiment JSON export to {args.json_out}")
     if args.standings_csv:
-        write_standings_csv(result, args.standings_csv)
-        print(f"Wrote standings CSV to {args.standings_csv}")
+        write_standings_csv(result.aggregate, args.standings_csv)
+        print(f"Wrote aggregate standings CSV to {args.standings_csv}")
     if args.matches_csv:
-        write_matches_csv(result, args.matches_csv)
-        print(f"Wrote matches CSV to {args.matches_csv}")
+        write_matches_csv(result.aggregate, args.matches_csv)
+        print(f"Wrote aggregate matches CSV to {args.matches_csv}")
     return 0
