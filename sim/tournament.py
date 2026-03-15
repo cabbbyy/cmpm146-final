@@ -65,12 +65,30 @@ class BotStats:
 
 
 @dataclass(frozen=True)
+class MatchupStats:
+    """Aggregate results for one unordered bot pairing."""
+
+    left_label: str
+    right_label: str
+    games: int
+    left_wins: int
+    right_wins: int
+    draws: int
+    total_margin_for_left: int
+
+    @property
+    def average_margin_for_left(self) -> float:
+        return self.total_margin_for_left / self.games if self.games else 0.0
+
+
+@dataclass(frozen=True)
 class TournamentResult:
     """Full tournament output."""
 
     entries: Tuple[BotEntry, ...]
     matches: Tuple[MatchResult, ...]
     standings: Tuple[BotStats, ...]
+    matchups: Tuple[MatchupStats, ...]
     black_wins: int
     white_wins: int
     draws: int
@@ -124,10 +142,12 @@ def run_round_robin(
     standings, black_wins, white_wins, draws = summarize_tournament(
         normalized_entries, matches
     )
+    matchups = summarize_matchups(matches)
     return TournamentResult(
         entries=normalized_entries,
         matches=tuple(matches),
         standings=standings,
+        matchups=matchups,
         black_wins=black_wins,
         white_wins=white_wins,
         draws=draws,
@@ -227,6 +247,15 @@ def render_tournament_report(result: TournamentResult) -> str:
         )
 
     lines.append("")
+    lines.append("Matchup Summary")
+    lines.append("Pair                           Record   AvgMargin")
+    for matchup in result.matchups:
+        record = f"{matchup.left_wins}-{matchup.right_wins}-{matchup.draws}"
+        pair_label = f"{matchup.left_label} vs {matchup.right_label}"
+        margin = f"{matchup.average_margin_for_left:+.2f} for {matchup.left_label}"
+        lines.append(f"{pair_label:<30} {record:>7}  {margin}")
+
+    lines.append("")
     lines.append("Match Results")
     for match in result.matches:
         outcome = match.winner_label if match.winner_label is not None else "draw"
@@ -235,6 +264,47 @@ def render_tournament_report(result: TournamentResult) -> str:
             f"{match.black_score}-{match.white_score} in {match.turns} turns -> {outcome}"
         )
     return "\n".join(lines)
+
+
+def summarize_matchups(matches: Sequence[MatchResult]) -> Tuple[MatchupStats, ...]:
+    """Aggregate results for each unordered bot pairing."""
+
+    table: Dict[Tuple[str, str], Dict[str, int]] = {}
+    for match in matches:
+        left_label, right_label = sorted((match.black_label, match.white_label))
+        key = (left_label, right_label)
+        if key not in table:
+            table[key] = {
+                "games": 0,
+                "left_wins": 0,
+                "right_wins": 0,
+                "draws": 0,
+                "total_margin_for_left": 0,
+            }
+
+        row = table[key]
+        row["games"] += 1
+        if match.black_label == left_label:
+            margin_for_left = match.black_score - match.white_score
+        else:
+            margin_for_left = match.white_score - match.black_score
+        row["total_margin_for_left"] += margin_for_left
+
+        if match.winner_label is None:
+            row["draws"] += 1
+        elif match.winner_label == left_label:
+            row["left_wins"] += 1
+        else:
+            row["right_wins"] += 1
+
+    return tuple(
+        MatchupStats(
+            left_label=left_label,
+            right_label=right_label,
+            **values,
+        )
+        for (left_label, right_label), values in sorted(table.items())
+    )
 
 
 def build_entries(specs: Sequence[str], minimax_depth: int = 3) -> Tuple[BotEntry, ...]:
