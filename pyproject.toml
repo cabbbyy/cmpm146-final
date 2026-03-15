@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "othello-bot-arena"
+version = "0.1.0"
+description = "Playable Othello prototype and game AI strategy lab."
+readme = "README.md"
+requires-python = ">=3.9"
+
+[tool.setuptools]
+packages = ["engine", "bots", "ui", "sim"]
