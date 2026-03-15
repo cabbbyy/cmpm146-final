@@ -11,6 +11,7 @@ Implemented so far:
 - baseline AI agents with short move explanations
 - minimax search with alpha-beta pruning
 - MCTS bot as a stretch-search agent
+- tuned MCTS rollouts with heuristic playout guidance
 - minimal CLI prototype for human-vs-bot and bot-vs-bot play
 - round-robin tournament simulation with summary statistics
 - JSON and CSV export support for tournament results
@@ -47,7 +48,7 @@ Available bots:
 - `GreedyBot`: chooses the move that flips the most discs immediately
 - `HeuristicBot`: evaluates successor states using corners, corner danger, mobility, edge control, and disc balance
 - `MinimaxBot`: searches future positions with alpha-beta pruning and a configurable depth
-- `MCTSBot`: searches with Monte Carlo Tree Search using configurable rollout counts
+- `MCTSBot`: searches with Monte Carlo Tree Search using configurable rollout counts, heuristic-guided playouts, and light positional priors
 
 Each bot returns both a move and a short explanation string tied to its actual policy.
 
@@ -86,6 +87,12 @@ python3 -m ui --black human --white mcts --mcts-iterations 200
 ```
 
 Other supported controller names are `human`, `random`, `greedy`, `heuristic`, `minimax`, and `mcts`.
+
+`MCTSBot` is tuned to use:
+
+- heuristic-guided rollout moves instead of purely random playouts
+- a rollout depth cutoff with heuristic fallback evaluation
+- light corner, edge, and corner-danger priors to reduce noisy root choices
 
 ## Run Tournaments
 
